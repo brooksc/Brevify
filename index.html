@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Summarize YouTube Video's via AI</title>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Ensure dark mode is applied before page render
+      document.documentElement.classList.add('dark');
+      
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              dark: {
+                bg: '#1A1B1E',
+                surface: '#25262B',
+                elevated: '#2C2D32',
+                border: '#383A3F',
+                text: 'rgba(255, 255, 255, 0.95)',
+                'text-secondary': 'rgba(255, 255, 255, 0.75)'
+              },
+              ai: {
+                chatgpt: '#19C37D',
+                claude: '#6B4BCC',
+                gemini: '#1B72E8'
+              }
+            },
+            spacing: {
+              xs: '4px',
+              sm: '8px',
+              md: '16px',
+              lg: '24px',
+              xl: '32px'
+            },
+            transitionProperty: {
+              'height': 'height',
+              'spacing': 'margin, padding',
+            }
+          }
+        },
+        plugins: [
+          function({ addUtilities }) {
+            addUtilities({
+              '.line-clamp-2': {
+                display: '-webkit-box',
+                '-webkit-line-clamp': '2',
+                '-webkit-box-orient': 'vertical',
+                overflow: 'hidden'
+              }
+            })
+          }
+        ]
+      }
+    </script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body class="min-h-screen p-4 bg-gray-100 dark:bg-dark-bg dark:text-dark-text" hx-boost="true">
+    <div class="container mx-auto p-0">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+          YouTube Video Summary Assistant
+        </h1>
+        <div class="flex gap-2">
+          <!-- Settings Toggle -->
+          <button
+            aria-label="Settings"
+            class="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+            onclick="toggleSettings()"
+            title="Settings">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+          </button>
+          <!-- Debug Toggle -->
+          <div class="flex items-center gap-2">
+            <span class="text-xl" title="Enable Debug Mode">🐛</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="debug-toggle" onchange="toggleDebugPanel()" />
+              <span class="toggle-slider dark:bg-dark-surface"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div id="settings-panel" class="hidden mb-6 bg-white dark:bg-dark-surface p-4 rounded-lg shadow">
+        <h2 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Settings</h2>
+        <div class="space-y-4">
+          <!-- API Key Input -->
+          <div>
+            <label for="api-key" class="block text-sm font-medium text-gray-700 dark:text-dark-text">
+              YouTube API Key
+            </label>
+            <div class="relative">
+              <input
+                type="text"
+                id="api-key"
+                name="api-key"
+                class="w-full p-2 border rounded pr-20 dark:bg-dark-bg dark:border-dark-border dark:text-dark-text"
+                placeholder="Enter your YouTube API key"
+                onchange="updateApiKey(this.value)" />
+              <button
+                class="absolute right-2 top-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                onclick="clearApiKey()">
+                Clear
+              </button>
+            </div>
+            <div id="api-key-status" class="text-sm"></div>
+          </div>
+          <!-- Theme Selection -->
+          <div>
+            <label for="theme-select" class="block text-sm font-medium text-gray-700 dark:text-dark-text">
+              Theme
+            </label>
+            <select
+              id="theme-select"
+              class="w-full p-2 border rounded dark:bg-dark-bg dark:border-dark-border dark:text-dark-text"
+              onchange="updateTheme(this.value)">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="auto">Auto (System)</option>
+            </select>
+          </div>
+          <!-- AI Prompt -->
+          <div>
+            <label for="ai-prompt" class="block text-sm font-medium text-gray-700 dark:text-dark-text mb-1">
+              AI Analysis Prompt
+            </label>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              Customize the prompt sent to AI services. Use {title} and {description} as placeholders.
+            </p>
+            <textarea
+              id="ai-prompt"
+              class="w-full p-2 border rounded dark:bg-dark-bg dark:border-dark-border dark:text-dark-text h-32 font-mono text-sm"
+              onchange="updatePrompt(this.value)"></textarea>
+            <button
+              onclick="resetPrompt()"
+              class="mt-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200">
+              Reset to Default
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-6">
+<!-- Input Panel -->
+<div class="w-full">
+  <div id="input-panel" class="bg-white dark:bg-dark-surface p-4 rounded-lg shadow w-full">
+    <div class="space-y-4">
+      <!-- Channel URL Input -->
+      <div class="w-full">
+        <input
+          type="text"
+          id="channel-input"
+          name="channel-input"
+          class="w-full px-4 py-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          placeholder="Enter YouTube channel URL"
+        />
+      </div>
+      <div class="flex items-center gap-4">
+        <button
+          class="flex-none px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+          onclick="fetchVideos()">
+          Fetch Videos
+        </button>
+        <select
+          id="channel-history"
+          class="flex-1 px-4 py-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          onchange="AppState.onChannelSelect(event)">
+          <option value="">Previous channels...</option>
+        </select>
+      </div>
+      <!-- Error Message -->
+      <div id="error-message" class="hidden text-red-600 dark:text-red-400 text-sm"></div>
+
+      <!-- Loading Spinner -->
+      <div id="loading-spinner" class="htmx-indicator">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+      </div>
+
+      <!-- Video Container -->
+      <div id="video-container" class="space-y-4">
+        <!-- Videos will be inserted here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+        <!-- Video List -->
+        <div 
+          id="video-list" 
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          hx-swap="innerHTML">
+        </div>
+      </div>
+
+      <!-- Debug Panel -->
+      <div id="debug-panel-container" class="hidden fixed bottom-0 right-0 w-96 bg-white dark:bg-gray-800 border-l border-t border-gray-200 dark:border-gray-700 shadow-lg">
+        <div class="p-4">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold">Debug Panel</h3>
+            <div class="space-x-2">
+              <button onclick="Logger.clear()" class="px-2 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600">
+                Clear Logs
+              </button>
+              <button onclick="Storage.clear()" class="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600">
+                Clear Storage
+              </button>
+            </div>
+          </div>
+          <div id="debug-panel" class="h-96 overflow-y-auto space-y-2 text-sm"></div>
+        </div>
+      </div>
+
+      <!-- Templates -->
+      <template id="video-card-template">
+        <div class="video-card bg-white dark:bg-dark-surface rounded-lg shadow-sm p-4 mb-4">
+          <div class="flex items-start space-x-4">
+            <img src="" alt="" class="w-48 h-auto object-contain rounded">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-lg font-semibold mb-1 text-gray-900 dark:text-gray-100">
+                <a href="" target="_blank" class="hover:text-blue-600"></a>
+              </h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 mb-2"></p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2"></p>
+              <button class="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600" onclick="toggleDescription(this)">Show More</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template id="log-entry-template">
+        <div class="log-entry p-2 rounded bg-white dark:bg-dark-surface dark:text-dark-text mb-2">
+          <span class="text-gray-500 dark:text-gray-400"><!-- Timestamp will be inserted here --></span>
+          <span class="log-level"><!-- Log level will be inserted here --></span>
+          <span class="text-gray-900 dark:text-dark-text"><!-- Message will be inserted here --></span>
+          <div class="text-xs text-gray-500 dark:text-gray-400"><!-- Component and action will be inserted here --></div>
+          <div class="text-xs text-red-600 dark:text-red-400 hidden"><!-- Error message will be inserted here --></div>
+        </div>
+      </template>
+
+      <!-- Custom JS -->
+      <script src="js/app.js"></script>
+      <script>
+        const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (isDarkMode) {
+          document.documentElement.classList.add('dark');
+        }
+      </script>
+    </div>
+  </body>
+</html>

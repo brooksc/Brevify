@@ -1,0 +1,336 @@
+/* Custom Styles */
+
+/* Dark Mode Overrides */
+.dark .video-card,
+.dark .group {
+    background-color: #25262B !important;
+}
+
+/* Video Card States */
+[data-state="unprocessed"] {
+    border-left: 4px solid #e5e7eb;
+}
+
+[data-state="processing"] {
+    border-left: 4px solid #60a5fa;
+}
+
+[data-state="processed"] {
+    border-left: 4px solid #34d399;
+}
+
+[data-state="error"] {
+    border-left: 4px solid #f87171;
+}
+
+/* Debug Panel Log Levels */
+.log-entry[data-level="INFO"] {
+    border-left: 2px solid #60a5fa;
+}
+
+.log-entry[data-level="WARN"] {
+    border-left: 2px solid #fbbf24;
+    background-color: #fef3c7;
+}
+
+.dark .log-entry[data-level="WARN"] {
+    border-left: 2px solid #fbbf24;
+    background-color: rgba(251, 191, 36, 0.2);
+}
+
+.log-entry[data-level="ERROR"] {
+    border-left: 2px solid #f87171;
+    background-color: #fee2e2;
+}
+
+.dark .log-entry[data-level="ERROR"] {
+    border-left: 2px solid #f87171;
+    background-color: rgba(248, 113, 113, 0.2);
+}
+
+/* Debug Panel Styles */
+.log-entry {
+    @apply p-2 rounded border border-gray-200 dark:border-gray-700;
+}
+
+.log-entry .time {
+    @apply text-xs text-gray-500 dark:text-gray-400 mr-2;
+}
+
+.log-entry .level {
+    @apply px-1.5 py-0.5 rounded text-xs mr-2;
+}
+
+.log-entry .level.info {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+}
+
+.log-entry .level.error {
+    @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+}
+
+.log-entry .level.warn {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+}
+
+.log-entry .component {
+    @apply text-xs text-gray-600 dark:text-gray-400 mr-1;
+}
+
+.log-entry .action {
+    @apply text-xs text-gray-500 dark:text-gray-500 mr-2;
+}
+
+.log-entry .message {
+    @apply text-sm text-gray-900 dark:text-gray-100;
+}
+
+.log-entry .error {
+    @apply mt-1 text-xs text-red-600 dark:text-red-400;
+}
+
+/* Loading States */
+.loading::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dark .loading::after {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.loading::before {
+    content: "";
+    position: absolute;
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid #e5e7eb;
+    border-top-color: #60a5fa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 1;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.dark .loading::before {
+    border-color: #374151;
+    border-top-color: #60a5fa;
+}
+
+@keyframes spin {
+    to {
+        transform: translate(-50%, -50%) rotate(360deg);
+    }
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.4s;
+    border-radius: 34px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: 0.4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #60a5fa;
+}
+
+.dark input:checked + .toggle-slider {
+    background-color: #3b82f6;
+}
+
+input:focus + .toggle-slider {
+    box-shadow: 0 0 1px #60a5fa;
+}
+
+.dark input:focus + .toggle-slider {
+    box-shadow: 0 0 1px #3b82f6;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(26px);
+}
+
+/* Utilities */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 3px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
+}
+
+/* HTMX Loading States */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 200ms ease-in;
+}
+.htmx-request .htmx-indicator {
+    opacity: 1
+}
+.htmx-request.htmx-indicator {
+    opacity: 1
+}
+
+/* HTMX Transitions */
+.htmx-swapping {
+    opacity: 0;
+    transition: opacity 300ms ease-out;
+}
+
+/* Animation for new content */
+#video-list > div {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading spinner animation */
+.loading-indicator {
+    display: none;
+}
+.htmx-request .loading-indicator {
+    display: block;
+}
+
+/* Settings Panel Animations */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOutUp {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+#settings-panel {
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+#settings-panel.hidden {
+    display: none;
+}
+
+/* AI Service Buttons */
+.ai-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: white;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.ai-btn:hover {
+    filter: brightness(110%);
+    transform: translateY(-1px);
+}
+
+.ai-btn:active {
+    transform: translateY(0);
+}
+
+.bg-ai-chatgpt {
+    background-color: #19C37D;
+}
+
+.bg-ai-claude {
+    background-color: #6B4BCC;
+}
+
+.bg-ai-gemini {
+    background-color: #1B72E8;
+}

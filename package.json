@@ -1,0 +1,13 @@
+{
+  "name": "brevify",
+  "version": "1.0.0",
+  "description": "AI-powered YouTube video summarizer",
+  "main": "index.html",
+  "scripts": {
+    "build:css": "tailwindcss -i ./css/input.css -o ./css/styles.css --minify",
+    "watch:css": "tailwindcss -i ./css/input.css -o ./css/styles.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
