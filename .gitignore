@@ -15,3 +15,4 @@ js/config.js
 *.swp
 *.swo
 .DS_Store
+.aider*
