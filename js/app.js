@@ -7,6 +7,7 @@ const DEBUG_MAX_LOGS = 100; // Maximum number of debug logs to keep
 const AppState = {
     theme: 'auto',
     apiKey: '',
+    accessToken: '',
     debug: false,
     prompt: '',
     channels: [],
@@ -14,6 +15,7 @@ const AppState = {
         // Load settings from localStorage
         this.theme = localStorage.getItem('theme') || 'auto';
         this.apiKey = localStorage.getItem('apiKey') || '';
+        this.accessToken = localStorage.getItem('accessToken') || '';
         this.debug = localStorage.getItem('debug') === 'true';
         
         // Initialize prompt with default if not in storage
@@ -266,6 +268,7 @@ const Storage = {
         Object.assign(AppState, {
             theme: 'auto',
             apiKey: '',
+            accessToken: '',
             debug: false,
             prompt: AppState.getDefaultPrompt(),
             channels: []
@@ -1164,7 +1167,51 @@ async function fetchTranscript(videoId) {
     });
 
     try {
-        // Get video details first
+        // Check if we have an access token
+        if (!AppState.accessToken) {
+            throw new Error('Please authorize access to YouTube first');
+        }
+
+        // First, get the caption tracks for the video
+        const captionsResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}`, {
+            headers: {
+                'Authorization': `Bearer ${AppState.accessToken}`
+            }
+        });
+        const captionsData = await captionsResponse.json();
+
+        if (!captionsData.items || captionsData.items.length === 0) {
+            throw new Error('No captions available for this video');
+        }
+
+        // Find English captions or use the first available track
+        let captionId = null;
+        for (const caption of captionsData.items) {
+            if (caption.snippet.language === 'en') {
+                captionId = caption.id;
+                break;
+            }
+        }
+        if (!captionId) {
+            captionId = captionsData.items[0].id;
+        }
+
+        // Download the caption track
+        const transcriptResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/captions/${captionId}?tfmt=srt`, {
+            headers: {
+                'Authorization': `Bearer ${AppState.accessToken}`
+            }
+        });
+        
+        if (!transcriptResponse.ok) {
+            throw new Error('Failed to fetch transcript');
+        }
+
+        const transcriptText = await transcriptResponse.text();
+
+        // Get video details for context
         const videoResponse = await fetch(
             `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${AppState.apiKey}`
         );
@@ -1176,29 +1223,6 @@ async function fetchTranscript(videoId) {
 
         const videoDetails = videoData.items[0].snippet;
 
-        // Try to fetch the transcript using timedtext API
-        const timedTextUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en`;
-        const transcriptResponse = await fetch(timedTextUrl, {
-            mode: 'cors',  // This should work with YouTube's timedtext API
-        });
-        
-        if (!transcriptResponse.ok) {
-            throw new Error('Failed to fetch transcript');
-        }
-
-        const transcriptXml = await transcriptResponse.text();
-        
-        // Parse the XML to extract text
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(transcriptXml, 'text/xml');
-        const textElements = xmlDoc.getElementsByTagName('text');
-        
-        // Combine all text elements into a single transcript
-        let transcriptText = '';
-        for (const element of textElements) {
-            transcriptText += element.textContent.replace(/&#39;/g, "'") + ' ';
-        }
-
         // Create a structured transcript with both metadata and content
         const transcript = `
 Title: ${videoDetails.title}
@@ -1209,7 +1233,7 @@ Description:
 ${videoDetails.description}
 
 Transcript:
-${transcriptText.trim()}`;
+${transcriptText}`;
 
         Logger.add('Transcript fetched successfully', {
             level: 'INFO',
