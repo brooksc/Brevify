@@ -69,7 +69,7 @@
           <!-- Theme Section -->
           <div class="mb-4">
             <h3 class="font-semibold mb-2 dark:text-dark-text">Theme</h3>
-            <select id="theme-select" onchange="updateTheme(this.value)" class="w-full p-2 border rounded dark:bg-dark-input dark:text-dark-text dark:border-dark-border">
+            <select id="theme-select" onchange="AppState.updateTheme(this.value)" class="w-full p-2 border rounded dark:bg-dark-input dark:text-dark-text dark:border-dark-border">
               <option value="light">Light</option>
               <option value="dark">Dark</option>
               <option value="auto">Auto (System)</option>
@@ -91,26 +91,37 @@
           <div class="space-y-4">
             <!-- Channel URL Input -->
             <div class="w-full">
-              <input
-                type="text"
-                id="channel-input"
-                name="channel-input"
-                class="w-full px-4 py-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                placeholder="Enter YouTube channel URL"
-              />
+              <div class="flex items-center gap-4">
+                <input
+                  type="text"
+                  id="channel-input"
+                  name="channel-input"
+                  class="flex-1 px-4 py-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  placeholder="Enter YouTube channel URL"
+                />
+                <button
+                  onclick="fetchVideos()"
+                  class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800">
+                  Fetch Videos
+                </button>
+              </div>
+              <div class="mt-2">
+                <select
+                  id="channel-history"
+                  class="w-full px-4 py-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  onchange="AppState.onChannelSelect(event)">
+                  <option value="">Previous channels...</option>
+                </select>
+              </div>
             </div>
-            <div class="flex items-center gap-4">
-              <button
-                class="flex-none px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
-                onclick="fetchVideos()">
-                Fetch Videos
-              </button>
-              <select
-                id="channel-history"
-                class="flex-1 px-4 py-2 rounded border border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                onchange="AppState.onChannelSelect(event)">
-                <option value="">Previous channels...</option>
-              </select>
+            <!-- Channel List -->
+            <div id="channel-list" class="mt-4 space-y-4">
+              <!-- Channel cards will be rendered here -->
+            </div>
+
+            <!-- Video List -->
+            <div id="video-list" class="mt-6 space-y-4">
+              <!-- Video cards will be rendered here -->
             </div>
             <!-- Error Message -->
             <div id="error-message" class="hidden text-red-600 dark:text-red-400 text-sm"></div>
@@ -145,15 +156,54 @@
         </div>
       </template>
 
+      <!-- Channel Card Template -->
+      <template id="channel-card-template">
+        <div class="channel-card bg-white dark:bg-dark-surface rounded-lg shadow-sm p-4 mb-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <img src="" alt="" class="w-16 h-16 rounded-full">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100"></h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400"></p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button class="refresh-button p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200" title="Refresh Videos">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+              </button>
+              <button class="toggle-button p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200" title="Toggle Active Status">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </button>
+              <button class="remove-button p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Remove Channel">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- App JavaScript -->
       <script type="module">
-        import { toggleSettings, AppState, displayVideos, showError, hideError } from './js/app.js';
+        import { Store } from './js/store.js';
+        import { toggleSettings, AppState, displayVideos, showError, hideError, fetchVideos } from './js/app.js';
+        
         // Make functions available globally
+        window.Store = Store;
         window.toggleSettings = toggleSettings;
         window.AppState = AppState;
         window.displayVideos = displayVideos;
         window.showError = showError;
         window.hideError = hideError;
+        window.fetchVideos = fetchVideos;
+
+        // Initialize app state
+        AppState.initialize();
       </script>
     </div>
   </body>

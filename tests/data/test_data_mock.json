@@ -1,0 +1,31 @@
+{
+    "channels": {
+        "valid_channel": {
+            "id": "UCNJ1Ymd5yFuUPtn21xtRbbw",
+            "handle": "@aiexplained-official",
+            "title": "AI Explained",
+            "description": "Covering the biggest news of the century - the arrival of smarter-than-human AI. The author of Simple Bench, exposing the remaining human-LLM reasoning gap. Join me at AI Insiders, with exclusive videos and a 1000+ network of AI enthusiasts and professionals: https://www.patreon.com/AIExplained\n\nBusiness Enquiries: aiexplained@outlook.com\n\nAre you a high-flying consultant, CPA or finance professional? North America/UK-based, love keeping up-to-date AI developments, w/ a spare few hours/week? Keen to work together on something cool, yet potentially quite rewarding? Do get in touch, email above."
+        },
+        "no_videos_channel": {
+            "id": "UCqMOCWe5FJuOWG7nGV_zHNA",
+            "handle": "@drhxa",
+            "title": "drhxa"
+        }
+    },
+    "videos": {
+        "with_transcript": {
+            "id": "5uJ8XPvn6kY",
+            "title": "The Biggest AI News in History Just Dropped",
+            "description": "The biggest AI news in history just dropped. OpenAI has announced Q* (Q-Star), a breakthrough in AI reasoning capabilities that has caused chaos at OpenAI, with researchers sending letters to the board about the dangers of this technology. Let's explore what Q* is, why it's so significant, and what this means for the future of AI.\n\nJoin AI Insiders: https://www.patreon.com/AIExplained\n\nTimestamps:\n00:00 - Intro\n00:57 - What is Q*?\n03:32 - Why is Q* so significant?\n05:55 - What are the implications?\n08:33 - What happens next?\n\nReferences:\n1. https://www.reuters.com/technology/sam-altman-return-openai-after-agreement-principle-reached-2023-11-22/\n2. https://www.ft.com/content/4a15c823-5c0a-4179-b2d7-0d241a96d704\n3. https://www.theinformation.com/articles/openai-made-breakthrough-before-board-fired-altman-employees-told\n4. https://www.businessinsider.com/openai-q-star-breakthrough-what-we-know-2023-11\n5. https://www.reuters.com/technology/what-is-q-star-project-that-spooked-openai-researchers-2023-11-23/",
+            "thumbnail_url": "https://i.ytimg.com/vi/5uJ8XPvn6kY/maxresdefault.jpg",
+            "published_at": "2023-11-24T17:00:32Z"
+        },
+        "no_transcript": {
+            "id": "g3XQVFLFfWo",
+            "title": "DJI 0188",
+            "description": "Drone footage",
+            "thumbnail_url": "https://i.ytimg.com/vi/g3XQVFLFfWo/maxresdefault.jpg",
+            "published_at": "2023-12-06T16:00:09Z"
+        }
+    }
+}
