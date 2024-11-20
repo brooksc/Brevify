@@ -8,7 +8,43 @@
     <div id="results">
         <h2>Analysis Results</h2>
         <p>Processing URL: {{ url }}</p>
-        <!-- Results will be populated here -->
+        {% for video in videos %}
+        <article class="bg-light-card dark:bg-dark-card rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+            <!-- Thumbnail -->
+            <div class="relative pt-[56.25%]">
+                <img 
+                    src="{{ video.thumbnail_url }}" 
+                    alt="{{ video.title }}" 
+                    class="absolute top-0 left-0 w-full h-full object-cover"
+                >
+                <span class="absolute bottom-2 right-2 px-2 py-1 bg-black/75 text-white text-xs rounded">
+                    {{ video.duration }}
+                </span>
+            </div>
+            
+            <!-- Video info -->
+            <div class="p-4">
+                <h3 class="font-semibold text-base mb-2 line-clamp-2">{{ video.title }}</h3>
+                <p class="text-light-secondary dark:text-dark-secondary text-sm mb-4">{{ video.channel_name }}</p>
+                
+                <!-- AI tool buttons -->
+                <div class="flex space-x-2">
+                    <button 
+                        class="flex-1 py-2 px-4 rounded-lg bg-chatgpt text-white hover:opacity-90 transition-all text-sm"
+                        onclick="window.open('{{ video.chatgpt_url }}', '_blank')"
+                    >
+                        ChatGPT
+                    </button>
+                    <button 
+                        class="flex-1 py-2 px-4 rounded-lg bg-claude text-white hover:opacity-90 transition-all text-sm"
+                        onclick="window.open('{{ video.claude_url }}', '_blank')"
+                    >
+                        Claude
+                    </button>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
     </div>
 </body>
 </html>
