@@ -32,6 +32,7 @@ run_backend_tests() {
     print_header "Running Backend Tests"
     echo "Running Python backend tests..."
     python -m pytest tests/backend/test_youtube_api.py -v
+    python -m pytest tests/frontend/test_ui.py -v
 }
 
 # Main execution

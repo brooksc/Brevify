@@ -4,7 +4,7 @@ YouTube video transcription and channel information service.
 Provides API endpoints for fetching video transcripts and channel information.
 """
 from typing import Dict, List, Optional, Union
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, render_template, send_from_directory, url_for
 from flask_cors import CORS
 from flask_caching import Cache
 import os
@@ -14,11 +14,12 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from dotenv import load_dotenv
 from datetime import datetime
+from urllib.parse import quote
 
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__, static_url_path='', static_folder='static')
+app = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 CORS(app)  # Enable CORS for all routes
 
 # Configure Flask-Caching with a simple cache
@@ -45,29 +46,43 @@ def get_video_id(url: str) -> str:
         raise ValueError(f'Error getting video ID: {str(e)}') from e
 
 def get_channel_id(url: str) -> str:
-    """Extract channel ID from various YouTube URL formats."""
-    try:
-        patterns = {
-            'channel': r'youtube\.com/channel/([^/?]+)',
-            'user': r'(?:www\.)?youtube\.com/@([^/?]+)'
-        }
-        for pattern_type, pattern in patterns.items():
-            match = re.search(pattern, url)
-            if match:
-                identifier = match.group(1)
-                if pattern_type == 'channel' and identifier.startswith('UC'):
-                    return identifier
-                youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
-                response = youtube.search().list(
-                    part='snippet',
-                    type='channel',
-                    q=identifier
-                ).execute()
-                if response['items']:
-                    return response['items'][0]['id']['channelId']
+    """Extract channel ID from URL and resolve handles using YouTube API if needed."""
+    if not url:
         raise ValueError('Invalid YouTube channel URL')
+
+    # Direct channel ID pattern
+    channel_match = re.search(r'youtube\.com/channel/([^/?&]+)', url)
+    if channel_match:
+        return channel_match.group(1)
+    
+    # Handle/Custom URL patterns
+    handle_match = re.search(r'youtube\.com/(?:c/|@|user/)?([^/?&]+)', url)
+    if not handle_match:
+        raise ValueError('Invalid YouTube channel URL')
+    
+    handle = handle_match.group(1)
+    
+    try:
+        youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
+        
+        # Try to find channel by handle/custom URL
+        search_response = youtube.search().list(
+            part='snippet',
+            q=handle,
+            type='channel',
+            maxResults=1
+        ).execute()
+        
+        if not search_response.get('items'):
+            raise ValueError('Channel not found')
+            
+        return search_response['items'][0]['id']['channelId']
+    except HttpError as e:
+        if e.resp.status == 403:
+            raise ValueError('YouTube API quota exceeded')
+        raise ValueError(f'Error accessing YouTube API: {str(e)}')
     except Exception as e:
-        raise ValueError(f'Error getting channel ID: {str(e)}') from e
+        raise ValueError(f'Error resolving channel ID: {str(e)}')
 
 @cache.memoize(timeout=300)
 def fetch_transcript(video_id: str) -> Dict[str, Union[bool, str, List[Dict[str, Union[str, float]]]]]:
@@ -83,141 +98,154 @@ def fetch_transcript(video_id: str) -> Dict[str, Union[bool, str, List[Dict[str,
     except Exception as e:
         raise ValueError(f'Error fetching transcript: {str(e)}')
 
-@cache.memoize(timeout=300)
-def fetch_channel_videos(channel_id: str) -> Dict[str, Union[bool, str, List[Dict[str, str]]]]:
-    """Fetch recent videos from a YouTube channel."""
+def generate_prompt(transcript: str, template: Optional[str] = None, metadata: Optional[Dict] = None) -> str:
+    """Generate a prompt for AI analysis."""
+    if not template:
+        template = """
+Please analyze this YouTube video transcript carefully and provide:
+1. Key points and main ideas
+2. Important insights and takeaways
+3. Any notable quotes or statements
+4. A brief summary
+
+Transcript:
+{transcript}
+"""
+    
+    # Create format dictionary with transcript
+    format_dict = {'transcript': transcript}
+    
+    # Add metadata to format dictionary if provided
+    if metadata:
+        format_dict.update(metadata)
+    
+    # Format template with variables
+    try:
+        result = template.format(**format_dict)
+    except KeyError as e:
+        raise ValueError(f'Missing required variable in template: {str(e)}')
+    
+    # Handle long prompts
+    if len(result) > 30000:
+        # Calculate available space for transcript
+        template_without_transcript = template.format(**{**format_dict, 'transcript': ''})
+        available_space = 30000 - len(template_without_transcript)
+        
+        # Truncate transcript and add indicator
+        truncated_transcript = transcript[:available_space] + "\n[transcript truncated]"
+        format_dict['transcript'] = truncated_transcript
+        result = template.format(**format_dict)
+    
+    return result
+
+def fetch_channel_videos(channel_id: str, max_results: int = 10) -> Dict[str, Union[bool, str, List[Dict[str, str]]]]:
+    """Fetch videos from a YouTube channel."""
     try:
         youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
         
-        # First try to get channel by username (for @handles)
-        if channel_id.startswith('@'):
-            username = channel_id.lstrip('@')
-            channel_response = youtube.channels().list(
-                part='snippet',
-                forUsername=username
-            ).execute()
-            if not channel_response.get('items'):
-                # Try search instead for @handles
-                search_response = youtube.search().list(
-                    part='snippet',
-                    q=channel_id,
-                    type='channel',
-                    maxResults=1
-                ).execute()
-                
-                if not search_response.get('items'):
-                    raise ValueError('Channel not found')
-                
-                channel_id = search_response['items'][0]['id']['channelId']
-                channel_response = youtube.channels().list(
-                    part='snippet',
-                    id=channel_id
-                ).execute()
-                
-                if not channel_response.get('items'):
-                    raise ValueError('Channel not found')
-        else:
-            # Try direct channel ID lookup
+        # First verify channel exists
+        try:
             channel_response = youtube.channels().list(
                 part='snippet',
                 id=channel_id
             ).execute()
+            
             if not channel_response.get('items'):
                 raise ValueError('Channel not found')
             
-        channel_title = channel_response['items'][0]['snippet']['title']
-        channel_id = channel_response['items'][0]['id']  # Get actual channel ID
-        
-        videos_response = youtube.search().list(
-            part='snippet',
-            channelId=channel_id,
-            order='date',
-            type='video',
-            maxResults=10
-        ).execute()
-        
-        videos = []
-        if videos_response and videos_response.get('items'):
-            videos = [{
-                'id': item['id']['videoId'],
-                'title': item['snippet']['title'],
-                'description': item['snippet']['description'],
-                'thumbnail': item['snippet']['thumbnails']['medium']['url'],
-                'publishedAt': item['snippet']['publishedAt']
-            } for item in videos_response['items']]
-        
-        return {
-            'success': True,
-            'channel_title': channel_title,
-            'videos': videos
-        }
-    except Exception as e:
-        if isinstance(e, HttpError):
+            channel_info = channel_response['items'][0]['snippet']
+            
+            # Then get channel videos
+            videos_response = youtube.search().list(
+                part='snippet',
+                channelId=channel_id,
+                maxResults=max_results,
+                type='video',
+                order='date'
+            ).execute()
+            
+            videos = []
+            for item in videos_response.get('items', []):
+                video = {
+                    'id': item['id']['videoId'],
+                    'title': item['snippet']['title'],
+                    'description': item['snippet']['description'],
+                    'thumbnail_url': item['snippet']['thumbnails']['medium']['url'],
+                    'published_at': item['snippet']['publishedAt']
+                }
+                videos.append(video)
+            
+            return {
+                'success': True,
+                'channel_title': channel_info['title'],
+                'videos': videos
+            }
+            
+        except HttpError as e:
+            if e.resp.status == 403:
+                raise ValueError('YouTube API quota exceeded')
             if e.resp.status == 404:
                 raise ValueError('Channel not found')
-            raise ValueError('Error fetching channel')
-        if isinstance(e, ValueError):
-            raise e
-        raise ValueError('Error fetching channel')
+            raise ValueError(f'Error accessing YouTube API: {str(e)}')
+            
+    except Exception as e:
+        raise ValueError(f'Error fetching channel: {str(e)}')
+
+def generate_ai_url(prompt, service):
+    """Generate URL for AI service with pre-filled prompt."""
+    encoded_prompt = quote(prompt)
+    
+    if service == 'chatgpt':
+        return f'https://chat.openai.com/chat?text={encoded_prompt}'
+    elif service == 'claude':
+        return f'https://claude.ai?text={encoded_prompt}'
+    elif service == 'gemini':
+        return f'https://gemini.google.com?text={encoded_prompt}'
+    else:
+        raise ValueError(f"Unsupported AI service: {service}")
 
 @app.route('/')
 def index():
     """Serve the main application page."""
-    return send_from_directory(app.static_folder, 'index.html')
-
-@app.route('/api/transcript')
-def get_transcript():
-    """API endpoint to fetch transcript for a YouTube video."""
-    try:
-        url = request.args.get('url')
-        if not url:
-            return jsonify({'success': False, 'error': 'No URL provided'}), 400
-        
-        video_id = get_video_id(url)
-        transcript_result = fetch_transcript(video_id)
-        
-        # Get video details
-        youtube = build('youtube', 'v3', developerKey=os.getenv('YOUTUBE_API_KEY'))
-        try:
-            video_response = youtube.videos().list(
-                part='snippet',
-                id=video_id
-            ).execute()
-        except HttpError as e:
-            if e.resp.status == 404:
-                return jsonify({'success': False, 'error': 'Video not found'}), 404
-            return jsonify({'success': False, 'error': 'Error fetching video'}), 500
-            
-        if not video_response.get('items'):
-            return jsonify({'success': False, 'error': 'Video not found'}), 404
-            
-        video_title = video_response['items'][0]['snippet']['title']
-        
-        return jsonify({
-            'success': True,
-            'video_title': video_title,
-            'transcript': transcript_result['transcript']
-        })
-    except ValueError as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+    return render_template('index.html')
 
 @app.route('/api/videos')
 def get_videos():
     """API endpoint to fetch videos from a YouTube channel."""
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+    
     try:
-        url = request.args.get('url')
-        if not url:
-            return jsonify({'success': False, 'error': 'No URL provided'}), 400
-        
         channel_id = get_channel_id(url)
-        result = fetch_channel_videos(channel_id)
+        videos = fetch_channel_videos(channel_id)
+        return jsonify(videos)
+    except ValueError as e:
+        error_msg = str(e)
+        if 'Invalid YouTube channel URL' in error_msg:
+            return jsonify({'error': 'Invalid YouTube URL'}), 400
+        if 'Channel not found' in error_msg:
+            return jsonify({'error': 'Channel not found'}), 404
+        return jsonify({'error': error_msg}), 500
+
+@app.route('/api/transcript')
+def get_transcript():
+    """API endpoint to fetch transcript for a YouTube video."""
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+    
+    try:
+        video_id = get_video_id(url)
+        result = fetch_transcript(video_id)
         return jsonify(result)
     except ValueError as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
-    except Exception as e:
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        error_msg = str(e)
+        if 'Invalid YouTube URL' in error_msg:
+            return jsonify({'error': 'Invalid YouTube URL'}), 400
+        if 'No transcript available' in error_msg:
+            return jsonify({'error': 'No transcript available'}), 404
+        return jsonify({'error': error_msg}), 500
 
 @app.route('/api/channel', methods=['POST'])
 def add_channel():
@@ -420,5 +448,7 @@ def get_service_result(service_id, video_id):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Only enable debug mode when running directly
+    debug_mode = os.environ.get('FLASK_ENV') != 'testing'
     port = int(os.environ.get('PORT', 8888))
-    app.run(host='0.0.0.0', port=port, debug=True, use_reloader=True)
+    app.run(host='0.0.0.0', port=port, debug=debug_mode, use_reloader=True)
