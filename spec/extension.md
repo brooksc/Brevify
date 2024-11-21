@@ -1,122 +1,129 @@
-# Chrome Extension MVP Specification: AI Service Text Injector
+# Brevify Chrome Extension Specification
 
-## 1. Core Functionality
-- Receive text content from a website
-- Open specified AI service (ChatGPT, Claude, etc.) in a new tab
-- Inject received text into the AI service's input field
-- Trigger the submit action
+## Overview
+The Brevify Chrome Extension enhances YouTube viewing by providing direct access to AI-powered learning tools. It integrates with the Brevify backend service to analyze video transcripts and generate AI tool links.
 
-## 2. Manifest (manifest.json)
+## Features
+1. Video Page Integration
+   - Adds a "Learn with AI" button below YouTube videos
+   - Shows AI tool options when transcript is available:
+     - ChatGPT Analysis
+     - Claude Analysis
+     - Gemini Analysis
+
+2. Channel Page Integration
+   - Adds "Analyze Channel" button on YouTube channel pages
+   - Quick access to Brevify analysis for entire channels
+
+3. UI Components
+   - Custom button with Brevify branding
+   - Dropdown menu for AI tool selection
+   - Loading states and error handling
+   - Dark mode support
+
+## Technical Requirements
+
+### Manifest (manifest.json)
 ```json
 {
   "manifest_version": 3,
-  "name": "AI Text Injector",
-  "version": "1.0",
-  "description": "Injects text into AI services",
+  "name": "Brevify - AI Learning Assistant",
+  "version": "1.0.0",
+  "description": "Transform YouTube videos into interactive learning experiences with AI-powered analysis",
   "permissions": [
     "activeTab",
-    "scripting",
     "storage"
   ],
   "host_permissions": [
-    "https://chat.openai.com/*",
-    "https://claude.ai/*"
+    "*://*.youtube.com/*"
   ],
-  "background": {
-    "service_worker": "background.js"
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["content.js"]
-  }]
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ]
 }
 ```
 
-## 3. Components
-
-### Background Script (background.js)
-```javascript
-// Listen for messages from websites
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'inject') {
-    // Store the text and target service
-    chrome.storage.local.set({
-      textToInject: request.text,
-      targetService: request.service
-    }, () => {
-      // Open the target service
-      const urls = {
-        'chatgpt': 'https://chat.openai.com',
-        'claude': 'https://claude.ai/chat'
-      };
-      chrome.tabs.create({ url: urls[request.service] });
-    });
-  }
-});
+### File Structure
+```
+extension/
+├── manifest.json
+├── popup.html
+├── popup.js
+├── content.js
+├── styles.css
+├── background.js
+└── icons/
+    ├── icon16.png
+    ├── icon48.png
+    └── icon128.png
 ```
 
-### Content Script (content.js)
-```javascript
-// Check if we're on an AI service page and have text to inject
-chrome.storage.local.get(['textToInject', 'targetService'], (data) => {
-  if (!data.textToInject) return;
+### Integration Points
+1. YouTube Video Page
+   - Inject button below video player
+   - Extract video ID and check for transcript
+   - Send requests to Brevify backend
 
-  // Selectors for different services
-  const selectors = {
-    'chatgpt': 'textarea[data-id="root"]',
-    'claude': 'textarea[placeholder="Type a message"]'
-  };
+2. YouTube Channel Page
+   - Add channel analysis button
+   - Extract channel ID/URL
+   - Redirect to Brevify web interface
 
-  const service = window.location.host.includes('openai') ? 'chatgpt' : 'claude';
-  const selector = selectors[service];
+### API Integration
+- Backend Endpoint: `http://localhost:8888`
+- Endpoints Used:
+  - `/fetch-videos` - Get channel videos
+  - `/check-transcript` - Check transcript availability
 
-  // Try to find and fill the input field
-  const interval = setInterval(() => {
-    const input = document.querySelector(selector);
-    if (input) {
-      clearInterval(interval);
-      input.value = data.textToInject;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      
-      // Trigger submit
-      const enterEvent = new KeyboardEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        keyCode: 13,
-        bubbles: true
-      });
-      input.dispatchEvent(enterEvent);
+### UI/UX Guidelines
+1. Button Styling
+   - Match YouTube's design language
+   - Use Brevify brand colors
+   - Support dark/light themes
 
-      // Clear the stored text
-      chrome.storage.local.remove(['textToInject', 'targetService']);
-    }
-  }, 500);
-});
-```
+2. Loading States
+   - Show spinner during API calls
+   - Disable buttons when processing
+   - Clear error messaging
 
-## 4. Website Integration
-Websites can trigger the extension using:
-```javascript
-// Send text to the extension
-chrome.runtime.sendMessage(extensionId, {
-  action: 'inject',
-  text: 'Your text here',
-  service: 'chatgpt' // or 'claude'
-});
-```
+3. Error Handling
+   - Network error recovery
+   - Missing transcript messaging
+   - User-friendly error displays
 
-## 5. Security Considerations
-- Extension ID must be whitelisted by the website
-- Text size should be limited (e.g., 20,000 characters)
-- No sensitive data should be stored persistently
+### Security Considerations
+1. Content Security Policy
+2. API Key handling
+3. Cross-origin request handling
+4. User data protection
 
-## 6. Installation & Setup
-1. Load as unpacked extension in Chrome
-2. Get extension ID from chrome://extensions
-3. Provide extension ID to websites that need to use it
+## Development Guidelines
+1. Use Modern JavaScript (ES6+)
+2. Follow Chrome Extension best practices
+3. Implement proper error handling
+4. Support offline functionality
+5. Maintain code documentation
 
-## 7. Limitations
-- Requires user to be logged into AI services
-- May break if AI services change their UI
-- Limited error handling in MVP
-- No guarantee of successful injection
+## Testing Requirements
+1. Unit tests for core functionality
+2. Integration tests with YouTube
+3. Cross-browser compatibility
+4. Performance testing
+5. Security testing

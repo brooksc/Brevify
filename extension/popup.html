@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Brevify</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="header">
+      <h1>Brevify</h1>
+      <p>AI Learning Assistant</p>
+    </div>
+    
+    <div class="content">
+      <div id="status" class="status">
+        <p>Waiting for YouTube video...</p>
+      </div>
+      
+      <div id="actions" class="actions" style="display: none;">
+        <button id="analyze" class="button primary">
+          Learn with AI
+        </button>
+        <div class="ai-tools">
+          <button id="chatgpt" class="tool-button">
+            <span class="icon">🤖</span>
+            ChatGPT
+          </button>
+          <button id="claude" class="tool-button">
+            <span class="icon">🧠</span>
+            Claude
+          </button>
+          <button id="gemini" class="tool-button">
+            <span class="icon">✨</span>
+            Gemini
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

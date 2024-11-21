@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Iterate through all *.jpeg files in the current directory
+for file in *.jpeg; do
+    # Check if the file exists (to handle cases with no .jpeg files)
+    if [[ -f "$file" ]]; then
+        # Remove the .jpeg extension to get the base name
+        base_name="${file%.jpeg}"
+        
+        # Convert the .jpeg file to .png
+        magick convert "$file" "${base_name}.png"
+        
+        echo "Converted $file to ${base_name}.png"
+    fi
+done

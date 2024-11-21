@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brevify Extension Test</title>
+    <style>
+        :root {
+            --primary-color: #2563EB;
+            --primary-hover: #1D4ED8;
+            --background: #FFFFFF;
+            --text: #111827;
+            --border: #E5E7EB;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-color: #3B82F6;
+                --primary-hover: #2563EB;
+                --background: #111827;
+                --text: #F9FAFB;
+                --border: #374151;
+            }
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+            margin: 0;
+            padding: 2rem;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--background);
+            color: var(--text);
+            font-family: inherit;
+            line-height: inherit;
+            resize: vertical;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--background);
+            color: var(--text);
+            font-family: inherit;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+        }
+
+        .info {
+            margin-top: 2rem;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        #status {
+            display: none;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+
+        #status.success {
+            display: block;
+            background: #10B981;
+            color: white;
+        }
+
+        #status.error {
+            display: block;
+            background: #EF4444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Brevify Extension Test</h1>
+
+        <div id="status"></div>
+
+        <div class="form-group">
+            <label for="aiService">AI Service:</label>
+            <select id="aiService">
+                <option value="chatgpt">ChatGPT</option>
+                <option value="claude">Claude</option>
+                <option value="gemini">Google Gemini</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="prompt">Custom Prompt (optional):</label>
+            <textarea id="prompt">Please analyze the following text and provide insights:</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="content">Content to Analyze:</label>
+            <textarea id="content">Recent advances in transformer architectures have particularly impacted natural language processing, enabling more sophisticated understanding and generation of human language. This has led to the development of large language models that can engage in meaningful dialogue, assist with coding tasks, and provide educational support.</textarea>
+        </div>
+
+        <button id="analyzeBtn">Analyze with AI</button>
+
+        <div class="info">
+            <h3>How it works:</h3>
+            <ol>
+                <li>Select your preferred AI service</li>
+                <li>Customize the prompt (optional)</li>
+                <li>Edit the content or use the sample text</li>
+                <li>Click "Analyze with AI" to open the selected service in a new tab</li>
+                <li>The extension will automatically paste the content and submit</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Function to show status messages
+        function showStatus(message, type = 'success') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = type;
+            console.log(`Status: ${message} (${type})`);
+            setTimeout(() => {
+                status.className = '';
+            }, 3000);
+        }
+
+        // Function to log debug messages
+        function debugLog(message, data = null) {
+            const timestamp = new Date().toISOString();
+            console.log(`[${timestamp}] Test Page:`, message, data || '');
+        }
+
+        document.getElementById('analyzeBtn').addEventListener('click', async () => {
+            debugLog('Analyze button clicked');
+            const aiService = document.getElementById('aiService').value;
+            const prompt = document.getElementById('prompt').value;
+            const content = document.getElementById('content').value;
+            
+            const combinedText = `${prompt}\n\nContent:\n${content}`;
+            
+            // Send message to content script
+            try {
+                debugLog('Sending BREVIFY_ANALYZE message', {
+                    service: aiService,
+                    textLength: combinedText.length
+                });
+                
+                window.postMessage({
+                    type: 'BREVIFY_ANALYZE',
+                    payload: {
+                        service: aiService,
+                        text: combinedText,
+                        textLength: combinedText.length
+                    }
+                }, '*');
+            } catch (error) {
+                console.error('Error:', error);
+                debugLog('Error sending message', error);
+                showStatus('Error: Make sure the Brevify extension is installed.', 'error');
+            }
+        });
+
+        // Listen for responses from the content script
+        window.addEventListener('message', (event) => {
+            // Only process messages from our own window
+            if (event.source !== window) {
+                return;
+            }
+            
+            const message = event.data;
+            if (!message || !message.type) {
+                return;
+            }
+
+            debugLog('Received message', message);
+            
+            if (message.type === 'BREVIFY_RESPONSE') {
+                if (message.error) {
+                    showStatus(`Error: ${message.error}`, 'error');
+                } else {
+                    showStatus('Analysis started successfully!');
+                }
+                // Don't do anything else with response messages
+                return;
+            }
+        });
+
+        // Check if extension is available
+        debugLog('Checking for extension');
+        window.postMessage({ type: 'BREVIFY_CHECK' }, '*');
+        
+        // Log when page is loaded
+        window.addEventListener('load', () => {
+            debugLog('Page loaded');
+        });
+    </script>
+</body>
+</html>
