@@ -11,9 +11,9 @@ class AIURLService:
     def __init__(self):
         """Initialize the AI URL service."""
         self.base_urls = {
-            'chatgpt': "https://chat.openai.com/",
-            'claude': "https://claude.ai/chat",
-            'gemini': "https://gemini.google.com/"
+            'chatgpt': "brevify://chatgpt",
+            'claude': "brevify://claude",
+            'gemini': "brevify://gemini"
         }
         
         self.prompt_templates = {
@@ -35,8 +35,7 @@ Transcript:
         """Generate a ChatGPT URL with the video transcript."""
         try:
             prompt = self._format_prompt(transcript)
-            params = f"?model=gpt-4&q={quote(prompt)}"
-            return f"{self.base_urls['chatgpt']}{params}"
+            return f"{self.base_urls['chatgpt']}?text={quote(prompt, safe='')}"
         except Exception as e:
             logger.error(f"Error generating ChatGPT URL: {str(e)}")
             return ""
@@ -45,8 +44,7 @@ Transcript:
         """Generate a Claude URL with the video transcript."""
         try:
             prompt = self._format_prompt(transcript)
-            params = f"?prompt={quote(prompt)}"
-            return f"{self.base_urls['claude']}{params}"
+            return f"{self.base_urls['claude']}?text={quote(prompt, safe='')}"
         except Exception as e:
             logger.error(f"Error generating Claude URL: {str(e)}")
             return ""
@@ -55,8 +53,7 @@ Transcript:
         """Generate a Gemini URL with the video transcript."""
         try:
             prompt = self._format_prompt(transcript)
-            params = f"?prompt={quote(prompt)}"
-            return f"{self.base_urls['gemini']}{params}"
+            return f"{self.base_urls['gemini']}?text={quote(prompt, safe='')}"
         except Exception as e:
             logger.error(f"Error generating Gemini URL: {str(e)}")
             return ""

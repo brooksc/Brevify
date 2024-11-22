@@ -65,5 +65,51 @@
             errorDiv.classList.add('hidden');
         }, 5000);
     });
+
+    // Handle clicks on AI analysis links
+    document.body.addEventListener('click', function(evt) {
+        const link = evt.target.closest('a[href^="brevify://"]');
+        if (!link) return;
+        
+        evt.preventDefault();
+        const url = new URL(link.href);
+        const aiTool = url.protocol.replace('brevify:', '').replace('//', '');
+        const text = decodeURIComponent(url.searchParams.get('text'));
+        
+        if (!text) {
+            console.error('No transcript found in URL');
+            return;
+        }
+
+        // Send message to the page which will be picked up by the extension
+        window.postMessage({
+            type: 'BREVIFY_ANALYZE',
+            payload: {
+                tool: aiTool,
+                text: text
+            }
+        }, '*');
+    });
+
+    // Show error if extension not found
+    function showExtensionError() {
+        const message = 'The Brevify extension is required to analyze transcripts. Please install it from the Chrome Web Store.';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50';
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+        setTimeout(() => errorDiv.remove(), 5000);
+    }
+
+    // Check if extension exists
+    window.postMessage({ type: 'BREVIFY_CHECK' }, '*');
+    const checkTimeout = setTimeout(showExtensionError, 1000);
+
+    // Listen for extension response
+    window.addEventListener('message', function(event) {
+        if (event.data?.type === 'BREVIFY_RESPONSE') {
+            clearTimeout(checkTimeout);
+        }
+    });
 </script>
 {% endblock %}
