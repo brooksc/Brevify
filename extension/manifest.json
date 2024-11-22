@@ -1,20 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Brevify - AI Learning Assistant",
-  "version": "1.0.0",
-  "description": "Transform YouTube videos into interactive learning experiences with AI-powered analysis",
+  "name": "Brevify",
+  "version": "1.0",
+  "description": "Opens AI assistants with selected text and inputs it into the prompt box.",
   "permissions": [
-    "activeTab",
+    "contextMenus",
     "storage",
     "scripting",
     "tabs"
   ],
   "host_permissions": [
-    "*://*.youtube.com/*",
-    "https://chat.openai.com/*",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://*.claude.ai/*",
     "https://gemini.google.com/*"
   ],
   "background": {
@@ -23,37 +20,35 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.youtube.com/*",
-        "file://*/*"
+        "file://*/*",
+        "http://*/*",
+        "https://*/*"
       ],
-      "js": ["content.js"],
-      "css": ["styles.css"],
-      "run_at": "document_idle"
+      "js": ["content.js"]
     }
   ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "web_accessible_resources": [
     {
       "resources": ["ai-service.js"],
       "matches": [
-        "https://chat.openai.com/*",
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://*.claude.ai/*",
         "https://gemini.google.com/*"
       ]
     }
   ],
   "action": {
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
-  },
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
   }
 }

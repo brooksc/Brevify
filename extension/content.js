@@ -183,7 +183,7 @@ init();
 
 // Listen for messages from the extension
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    debugLog('Received message', { message, sender });
+    debugLog('Received message from extension', { message, sender });
     
     if (message.type === 'BREVIFY_ANALYZE') {
         debugLog('Processing analyze request', message.payload);
@@ -219,6 +219,16 @@ window.addEventListener('message', event => {
     }
     
     const message = event.data;
+    
+    // Handle extension check
+    if (message.type === 'BREVIFY_CHECK') {
+        debugLog('Extension check received');
+        window.postMessage({
+            type: 'BREVIFY_RESPONSE',
+            payload: { success: true }
+        }, '*');
+        return;
+    }
     
     // Ignore if not a BREVIFY message or if it's a response
     if (!message?.type?.startsWith('BREVIFY_') || message.type === 'BREVIFY_RESPONSE') {
