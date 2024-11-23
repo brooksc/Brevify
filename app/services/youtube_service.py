@@ -6,7 +6,6 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 from sqlmodel import Session, select
 from app.models.models import Channel, Video
-from app.db.database import get_db
 from googleapiclient.discovery import build
 import os
 from urllib.parse import urlparse
@@ -16,9 +15,9 @@ logger = logging.getLogger(__name__)
 class YouTubeService:
     """Service for fetching YouTube data."""
 
-    def __init__(self):
-        """Initialize the service."""
-        self.db = next(get_db())
+    def __init__(self, db: Session):
+        """Initialize the service with a database session."""
+        self.db = db
         self.youtube = None
         api_key = os.getenv('YOUTUBE_API_KEY')
         if api_key:
@@ -50,11 +49,10 @@ class YouTubeService:
                 self.db.add(cached_channel)
             
             self.db.commit()
-            self.db.refresh(cached_channel)
             return cached_channel
         except Exception as e:
             logger.error(f"Error fetching channel info: {e}")
-            return cached_channel if cached_channel else None
+            return None
 
     async def get_videos(self, channel_id: str) -> List[Video]:
         """Get videos for a channel, using cache when possible."""
