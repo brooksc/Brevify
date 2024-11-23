@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from app.services.youtube_service import YouTubeService
 from app.services.ai_url_service import AIURLService
+from app.services.url_service import URLService
 from app.components.video_list import VideoList
 
 # Configure logging
@@ -35,45 +36,62 @@ templates = Jinja2Templates(directory="templates")
 # Initialize services
 youtube_service = YouTubeService()
 ai_url_service = AIURLService()
+url_service = URLService()
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Render the main page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    saved_channels = url_service.get_saved_channels()
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "saved_channels": saved_channels
+    })
+
+@app.post("/save-url")
+async def save_url(channel_url: str = Form(...)):
+    """Save a channel URL."""
+    if not channel_url:
+        return {"error": "Please provide a YouTube channel URL"}
+    
+    try:
+        # Get channel information from YouTube
+        channel_info = await youtube_service.get_channel_info(channel_url)
+        if url_service.save_url(channel_url, channel_info):
+            return {"success": True}
+    except Exception as e:
+        logger.error(f"Error saving channel: {e}")
+        # Still try to save just the URL if channel info fails
+        if url_service.save_url(channel_url):
+            return {"success": True}
+    
+    return {"error": "Failed to save URL"}
 
 @app.post("/fetch-videos")
-async def fetch_videos(channel_url: str = Form(...)):
+async def fetch_videos(request: Request, channel_url: str = Form(...)):
     """Fetch videos from a YouTube channel."""
     logger.debug(f"Received channel URL: {channel_url}")
     
     if not channel_url:
-        logger.error("No channel URL provided")
-        return {"error": "Please provide a YouTube channel URL"}, 400
+        return {"error": "Please provide a YouTube channel URL"}
     
     try:
-        # Get videos from channel
-        logger.debug("Fetching videos from channel...")
+        # Get channel information and save it
+        channel_info = await youtube_service.get_channel_info(channel_url)
+        url_service.save_url(channel_url, channel_info)
+        
+        # Get video list and process it through the component
         videos = youtube_service.get_channel_videos(channel_url)
-        logger.debug(f"Found {len(videos)} videos")
+        video_list = VideoList(videos=videos)
+        processed_videos = video_list.process_videos()  # This will add AI URLs
         
-        # Add AI URLs to each video
-        for video in videos:
-            if video.transcript:
-                logger.debug(f"Generating AI URLs for video {video.id}")
-                video.chatgpt_url = ai_url_service.get_chatgpt_url(video.transcript)
-                video.claude_url = ai_url_service.get_claude_url(video.transcript)
-                video.gemini_url = ai_url_service.get_gemini_url(video.transcript)
-        
-        # Render video list
-        logger.debug("Rendering video list...")
-        video_list = VideoList(videos)
-        html = video_list.render()
-        logger.debug("Video list rendered successfully")
-        return HTMLResponse(content=html)
-        
+        # Render using the template
+        return templates.TemplateResponse("video_list.html", {
+            "request": request,
+            "videos": processed_videos
+        })
     except Exception as e:
-        logger.error(f"Error processing request: {str(e)}", exc_info=True)
-        return {"error": str(e)}, 400
+        logger.error(f"Error fetching videos: {e}")
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn

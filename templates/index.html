@@ -14,24 +14,33 @@
 
     <!-- Channel URL Input -->
     <div class="bg-light-card dark:bg-dark-card rounded-xl shadow-sm p-6 mb-8">
-        <form hx-post="http://localhost:8888/fetch-videos" 
+        <form hx-post="/fetch-videos" 
               hx-target="#video-list" 
               hx-indicator="#loading"
+              hx-on:submit="saveUrl()"
               class="space-y-4">
             
             <div>
                 <label for="channel_url" class="block text-sm font-medium mb-2">
                     YouTube Channel URL
                 </label>
-                <input type="text" 
-                       id="channel_url" 
-                       name="channel_url" 
-                       required
-                       placeholder="https://www.youtube.com/c/channelname"
-                       class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
-                              bg-white dark:bg-gray-700 
-                              focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
-                              focus:border-transparent">
+                <div class="relative">
+                    <input type="text" 
+                           id="channel_url" 
+                           name="channel_url" 
+                           required
+                           placeholder="https://www.youtube.com/c/channelname"
+                           class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 
+                                  bg-white dark:bg-gray-700 
+                                  focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 
+                                  focus:border-transparent"
+                           list="saved-urls">
+                    <datalist id="saved-urls">
+                        {% for channel in saved_channels %}
+                            <option value="{{ channel.url }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
             </div>
 
             <button type="submit" 
@@ -44,6 +53,45 @@
         <!-- Error Message -->
         <div id="error-message" class="mt-4 text-red-600 dark:text-red-400 text-sm hidden"></div>
     </div>
+
+    <!-- Saved Channels -->
+    {% if saved_channels %}
+    <div class="bg-light-card dark:bg-dark-card rounded-xl shadow-sm p-6 mb-8">
+        <h2 class="text-xl font-semibold mb-4">Your Saved Channels</h2>
+        <div class="space-y-4">
+            {% for channel in saved_channels %}
+            <div class="group hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg p-4 transition-colors duration-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <a href="#" 
+                               class="text-lg font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                               onclick="document.getElementById('channel_url').value='{{ channel.url }}'; return false;">
+                                {{ channel.channel_name or 'Unnamed Channel' }}
+                            </a>
+                            {% if channel.last_video_date %}
+                            <span class="ml-3 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 rounded-full">
+                                Last Upload: {{ channel.last_video_date.split('T')[0] }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if channel.last_video_title %}
+                        <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            Latest: {{ channel.last_video_title }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button onclick="document.getElementById('channel_url').value='{{ channel.url }}'; document.querySelector('form').dispatchEvent(new Event('submit'));"
+                            class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                                   px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">
+                        Load Videos
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Loading Indicator -->
     <div id="loading" class="htmx-indicator flex justify-center items-center py-8">
@@ -65,6 +113,17 @@
             errorDiv.classList.add('hidden');
         }, 5000);
     });
+
+    // Function to save URL using HTMX
+    function saveUrl() {
+        const url = document.getElementById('channel_url').value;
+        if (!url) return;
+        
+        htmx.ajax('POST', '/save-url', {
+            values: { channel_url: url },
+            swap: 'none'
+        });
+    }
 
     // Handle clicks on AI analysis links
     document.body.addEventListener('click', function(evt) {

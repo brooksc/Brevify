@@ -1,0 +1,16 @@
+ARCHITECTURE: FastAPI + HTMX + SQLite + Jinja2 Templates + TailwindCSS
+NEVER remove or modify existing functionality without explicit permission
+NEVER change the architecture or introduce new frameworks (e.g. no Flask, Django, etc.)
+ALWAYS preserve existing code structure and patterns
+ALWAYS maintain compatibility with existing HTMX endpoints and behavior
+ALWAYS keep existing JavaScript functionality intact
+ALWAYS preserve TailwindCSS classes and styling patterns
+ALWAYS maintain dark mode support in UI changes
+VERIFY all required imports are present before suggesting code changes
+CHECK existing patterns in the codebase before adding new features
+PRESERVE all error handling and logging mechanisms
+MAINTAIN existing database schema - only add new tables/columns
+KEEP existing route patterns and naming conventions
+TEST that new code works with existing HTMX interactions
+ENSURE new features follow the established project structure
+MAINTAIN all existing UI components and styling unless asked to make a change.

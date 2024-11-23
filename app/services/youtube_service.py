@@ -154,3 +154,44 @@ class YouTubeService:
         except Exception as e:
             logger.error(f"Error fetching channel videos: {str(e)}")
             raise ValueError(f"Error fetching channel videos: {str(e)}")
+
+    async def get_channel_info(self, channel_url: str) -> dict:
+        """Get channel information including latest video."""
+        try:
+            channel_id = self._extract_channel_id(channel_url)
+            
+            # Get channel details
+            channel_response = self.youtube.channels().list(
+                part='snippet,contentDetails',
+                id=channel_id
+            ).execute()
+            
+            if not channel_response['items']:
+                raise ValueError("Channel not found")
+            
+            channel_info = channel_response['items'][0]
+            playlist_id = channel_info['contentDetails']['relatedPlaylists']['uploads']
+            
+            # Get latest video
+            videos_response = self.youtube.playlistItems().list(
+                part='snippet',
+                playlistId=playlist_id,
+                maxResults=1
+            ).execute()
+            
+            latest_video = videos_response['items'][0]['snippet'] if videos_response['items'] else None
+            
+            return {
+                'channel_name': channel_info['snippet']['title'],
+                'last_video_title': latest_video['title'] if latest_video else '',
+                'last_video_date': latest_video['publishedAt'] if latest_video else ''
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting channel info: {str(e)}")
+            raise ValueError(f"Error getting channel info: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv('PORT', 8888))
+    logger.info(f"Starting FastAPI server on port {port}")
