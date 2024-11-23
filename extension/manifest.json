@@ -14,7 +14,7 @@
   ],
   "host_permissions": [
     "http://localhost:8888/*",
-    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*"
   ],
@@ -30,7 +30,7 @@
     },
     {
       "matches": [
-        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
         "https://claude.ai/*",
         "https://gemini.google.com/*"
       ],
