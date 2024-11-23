@@ -16,7 +16,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         let url;
         switch (command) {
             case 'chatgpt':
-                url = 'https://chat.openai.com/';
+                url = 'https://chatgpt.com/';
                 break;
             case 'claude':
                 url = 'https://claude.ai/';
