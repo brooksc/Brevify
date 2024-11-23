@@ -14,10 +14,9 @@
 
     <!-- Channel URL Input -->
     <div class="bg-light-card dark:bg-dark-card rounded-xl shadow-sm p-6 mb-8">
-        <form hx-post="/fetch-videos" 
+        <form hx-post="/api/channel" 
               hx-target="#video-list" 
               hx-indicator="#loading"
-              hx-on:submit="saveUrl()"
               class="space-y-4">
             
             <div>
@@ -50,8 +49,14 @@
             </button>
         </form>
 
+        <!-- Loading Indicator -->
+        <div id="loading" class="htmx-indicator flex justify-center items-center mt-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
+
         <!-- Error Message -->
-        <div id="error-message" class="mt-4 text-red-600 dark:text-red-400 text-sm hidden"></div>
+        <div id="error-message" class="hidden mt-4 p-4 text-red-700 bg-red-100 rounded-lg">
+        </div>
     </div>
 
     <!-- Saved Channels -->
@@ -93,11 +98,6 @@
     </div>
     {% endif %}
 
-    <!-- Loading Indicator -->
-    <div id="loading" class="htmx-indicator flex justify-center items-center py-8">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-    </div>
-
     <!-- Video List -->
     <div id="video-list" class="space-y-6">
         <!-- Videos will be loaded here -->
@@ -114,43 +114,26 @@
         }, 5000);
     });
 
-    // Function to save URL using HTMX
-    function saveUrl() {
-        const url = document.getElementById('channel_url').value;
-        if (!url) return;
-        
-        htmx.ajax('POST', '/save-url', {
-            values: { channel_url: url },
-            swap: 'none'
-        });
-    }
-
     // Handle clicks on AI analysis links
     document.body.addEventListener('click', function(evt) {
         const link = evt.target.closest('a[href^="brevify://"]');
         if (!link) return;
         
         evt.preventDefault();
-        const url = new URL(link.href);
-        const aiTool = url.protocol.replace('brevify:', '').replace('//', '');
-        const text = decodeURIComponent(url.searchParams.get('text'));
         
-        if (!text) {
-            console.error('No transcript found in URL');
-            return;
-        }
-
-        // Send message to the page which will be picked up by the extension
+        // Extract the command and parameters
+        const url = new URL(link.href);
+        const command = url.hostname;
+        const params = Object.fromEntries(url.searchParams);
+        
+        // Send message to extension
         window.postMessage({
-            type: 'BREVIFY_ANALYZE',
-            payload: {
-                tool: aiTool,
-                text: text
-            }
+            type: 'BREVIFY_COMMAND',
+            command: command,
+            params: params
         }, '*');
     });
 
-    // Show error if extension not found
     function showExtensionError() {
         const message = 'The Brevify extension is required to analyze transcripts. Please install it from the Chrome Web Store.';
         const errorDiv = document.createElement('div');
