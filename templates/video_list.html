@@ -28,7 +28,11 @@
 
                         // Fetch transcript
                         const response = await fetch(`/api/transcript/${videoId}`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
                         const data = await response.json();
+                        console.log("Transcript response:", data); // Debug log
 
                         if (data.transcript) {
                             // Update button state and proceed with AI
@@ -45,17 +49,18 @@
                                 }
                             }, '*');
                         } else {
+                            console.error("No transcript in response:", data); // Debug log
                             button.innerHTML = '❌ No transcript';
                             button.disabled = true;
                         }
                     } catch (error) {
-                        console.error('Error:', error);
+                        console.error('Error fetching transcript:', error); // Enhanced error logging
                         button.innerHTML = '❌ Error';
                         button.disabled = true;
                     }
                 }
                 </script>
-                <div class="flex space-x-2 mt-2" data-title="{{ video.title }}">
+                <div class="flex space-x-2 mt-2 video-card" data-title="{{ video.title }}">
                     <button onclick="fetchTranscript('{{ video.id }}', this)" 
                             data-service="chatgpt"
                             class="ai-tool-btn bg-gray-100 dark:bg-gray-700 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
