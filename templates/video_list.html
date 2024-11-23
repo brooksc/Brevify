@@ -3,7 +3,7 @@
 {% else %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for video in videos %}
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+    <div class="video-card bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden" data-title="{{ video.title }}">
         <a href="https://youtube.com/watch?v={{ video.id }}" target="_blank" class="block">
             <img src={{ video.thumbnail_url }} alt="{{ video.title }}" 
                  class="w-full h-48 object-cover">
@@ -21,10 +21,22 @@
                 <script>
                 async function fetchTranscript(videoId, button) {
                     try {
+                        console.log("Button:", button);
+                        console.log("Video card:", button.closest('.video-card'));
+                        console.log("Video ID:", videoId);
+                        
                         // Show loading state
                         const originalHtml = button.innerHTML;
                         button.innerHTML = '⌛ Loading...';
                         button.disabled = true;
+
+                        // Get video title from the closest video-card parent
+                        const videoCard = button.closest('.video-card');
+                        if (!videoCard) {
+                            throw new Error('Could not find video card element');
+                        }
+                        const videoTitle = videoCard.dataset.title;
+                        console.log("Video title:", videoTitle);
 
                         // Fetch transcript
                         const response = await fetch(`/api/transcript/${videoId}`);
@@ -32,7 +44,7 @@
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         const data = await response.json();
-                        console.log("Transcript response:", data); // Debug log
+                        console.log("Transcript response:", data);
 
                         if (data.transcript) {
                             // Update button state and proceed with AI
@@ -40,27 +52,29 @@
                             button.disabled = false;
                             
                             // Send transcript to AI service
-                            window.postMessage({
+                            const message = {
                                 type: 'BREVIFY_COMMAND',
                                 command: button.dataset.service,
                                 params: {
                                     text: data.transcript,
-                                    title: button.closest('.video-card').dataset.title
+                                    title: videoTitle
                                 }
-                            }, '*');
+                            };
+                            console.log("Sending message:", message);
+                            window.postMessage(message, '*');
                         } else {
-                            console.error("No transcript in response:", data); // Debug log
+                            console.error("No transcript in response:", data);
                             button.innerHTML = '❌ No transcript';
                             button.disabled = true;
                         }
                     } catch (error) {
-                        console.error('Error fetching transcript:', error); // Enhanced error logging
+                        console.error('Error fetching transcript:', error);
                         button.innerHTML = '❌ Error';
                         button.disabled = true;
                     }
                 }
                 </script>
-                <div class="flex space-x-2 mt-2 video-card" data-title="{{ video.title }}">
+                <div class="flex space-x-2">
                     <button onclick="fetchTranscript('{{ video.id }}', this)" 
                             data-service="chatgpt"
                             class="ai-tool-btn bg-gray-100 dark:bg-gray-700 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
