@@ -1,19 +1,17 @@
-"""Main application module."""
-
+"""Main FastAPI application."""
 import os
 import logging
 from pathlib import Path
-from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Form, Depends
+from fastapi import FastAPI, Request, Depends, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlmodel import Session
+
 from app.services.youtube_service import YouTubeService
-from app.services.ai_url_service import AIURLService
-from app.services.url_service import URLService
 from app.components.video_list import VideoList
-from app.db.database import get_db
+from app.db.database import get_db, create_db_and_tables
+from app.models.models import Channel, Video
 
 # Configure logging
 logging.basicConfig(
@@ -22,90 +20,70 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
-load_dotenv()
-
-# Check required environment variables
-if not os.getenv('YOUTUBE_API_KEY'):
-    logger.error("YOUTUBE_API_KEY environment variable not set")
-    raise ValueError("YOUTUBE_API_KEY environment variable not set")
-
 # Get base directory
 BASE_DIR = Path(__file__).resolve().parent
 
-# Initialize FastAPI app
-app = FastAPI(title="Brevify")
+# Create FastAPI app
+app = FastAPI()
 
 # Mount static directory
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
-# Set up templates directory
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+# Setup templates
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # Initialize services
 youtube_service = YouTubeService()
-ai_url_service = AIURLService()
-url_service = URLService()
 video_list = VideoList(templates)
+
+@app.on_event("startup")
+async def on_startup():
+    """Create database tables on startup."""
+    create_db_and_tables()
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request, db: Session = Depends(get_db)):
     """Render the main page."""
-    saved_channels = url_service.get_saved_channels()
+    # Get all channels and their videos
+    channels = db.query(Channel).all()
+    videos = []
+    for channel in channels:
+        channel_videos = await youtube_service.get_videos(channel.id)
+        videos.extend(channel_videos)
+    
+    # Sort by published date
+    videos.sort(key=lambda x: x.published_at, reverse=True)
+    
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "saved_channels": saved_channels
+        "videos": videos
     })
 
-@app.post("/save-url")
-async def save_url(channel_url: str = Form(...), db: Session = Depends(get_db)):
-    """Save a channel URL."""
-    if not channel_url:
-        return {"error": "Please provide a YouTube channel URL"}
-    
+@app.post("/api/channel")
+async def add_channel(request: Request, channel_url: str = Form(...), db: Session = Depends(get_db)):
+    """Add a new channel and fetch its videos."""
     try:
-        # Get channel information from YouTube
-        channel_info = await youtube_service.get_channel_info(channel_url)
-        if url_service.save_url(channel_url, channel_info):
-            return {"success": True}
-    except Exception as e:
-        logger.error(f"Error saving channel: {e}")
-        # Still try to save just the URL if channel info fails
-        if url_service.save_url(channel_url):
-            return {"success": True}
-    
-    return {"error": "Failed to save URL"}
-
-@app.post("/fetch-videos")
-async def fetch_videos(request: Request, channel_url: str = Form(...), db: Session = Depends(get_db)):
-    """Fetch videos from a YouTube channel."""
-    logger.debug(f"Received channel URL: {channel_url}")
-    
-    if not channel_url:
-        return {"error": "Please provide a YouTube channel URL"}
-    
-    try:
-        # Get channel information and save it
-        channel_info = await youtube_service.get_channel_info(channel_url)
-        url_service.save_url(channel_url, channel_info)
+        # Get or create channel
+        channel = await youtube_service.get_channel_info(channel_url)
+        if not channel:
+            return {"error": "Could not fetch channel info"}
         
-        # Get video list and process it through the component
-        videos = youtube_service.get_channel_videos(channel_url)
-        processed_videos = video_list.process_videos(videos)  # This will add AI URLs
+        # Fetch videos (this will cache them)
+        videos = await youtube_service.get_videos(channel.id)
         
-        # Render using the template
+        # Return the video list partial
         return templates.TemplateResponse("video_list.html", {
             "request": request,
-            "videos": processed_videos
+            "videos": videos
         })
     except Exception as e:
-        logger.error(f"Error fetching videos: {e}")
+        logger.error(f"Error adding channel: {e}")
         return {"error": str(e)}
 
 @app.get("/api/transcript/{video_id}")
 async def get_transcript(video_id: str, db: Session = Depends(get_db)):
     """Get transcript for a specific video."""
-    transcript = await video_list.get_transcript(video_id)
+    transcript = await youtube_service.get_transcript(video_id)
     if transcript:
         return {"transcript": transcript}
     return {"transcript": None}
