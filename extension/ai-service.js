@@ -10,7 +10,7 @@
                 sendButton: 'button[data-testid="send-button"]'
             };
         }
-        if (domain === 'chat.openai.com') {
+        if (domain === 'chatgpt.com') {
             return {
                 textarea: "textarea",
                 sendButton: 'button[data-testid="send-button"]'
