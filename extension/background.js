@@ -26,10 +26,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             let url;
             switch (command) {
                 case 'chatgpt':
-                    url = 'https://chat.openai.com/chat';
+                    url = 'https://chatgpt.com/';
                     break;
                 case 'claude':
-                    url = 'https://claude.ai/chat';
+                    url = 'https://claude.ai/';
                     break;
                 case 'gemini':
                     url = 'https://gemini.google.com/';
@@ -81,26 +81,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             
             return true; // Keep the message channel open for async response
         } else if (message.type === 'BREVIFY_ANALYZE') {
-            const { service, text } = message.payload;
-            debugLog('Processing analyze request', { service, textLength: text?.length });
+            const openaiChatUrl = 'https://chat.openai.com/';
             
-            let url;
-            switch (service) {
-                case 'chatgpt':
-                    url = 'https://chat.openai.com/chat';
-                    break;
-                case 'claude':
-                    url = 'https://claude.ai/chat';
-                    break;
-                case 'gemini':
-                    url = 'https://gemini.google.com/';
-                    break;
-                default:
-                    throw new Error(`Unknown service: ${service}`);
-            }
-            
-            // Open the AI service tab
-            chrome.tabs.create({ url }, (newTab) => {
+            // Open the ChatGPT tab
+            chrome.tabs.create({ url: openaiChatUrl }, (newTab) => {
                 if (chrome.runtime.lastError) {
                     const error = chrome.runtime.lastError.message;
                     debugLog('Error opening new tab:', error);
