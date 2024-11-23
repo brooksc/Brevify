@@ -18,29 +18,57 @@
                 {{ video.description }}
             </p>
             <div class="flex flex-col space-y-2 mt-2">
+                <script>
+                async function fetchTranscript(videoId, button) {
+                    try {
+                        // Show loading state
+                        const originalHtml = button.innerHTML;
+                        button.innerHTML = '⌛ Loading...';
+                        button.disabled = true;
+
+                        // Fetch transcript
+                        const response = await fetch(`/api/transcript/${videoId}`);
+                        const data = await response.json();
+
+                        if (data.transcript) {
+                            // Update button state and proceed with AI
+                            button.innerHTML = originalHtml;
+                            button.disabled = false;
+                            
+                            // Send transcript to AI service
+                            chrome.runtime.sendMessage({
+                                action: "openAIChat",
+                                selectedText: data.transcript,
+                                service: button.dataset.service
+                            });
+                        } else {
+                            button.innerHTML = '❌ No transcript';
+                            button.disabled = true;
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        button.innerHTML = '❌ Error';
+                        button.disabled = true;
+                    }
+                }
+                </script>
                 {% if video.transcript %}
-                    <div class="flex justify-center gap-4">
-                        {% if video.chatgpt_url %}
-                        <a href="{{ video.chatgpt_url }}" target="_blank" 
-                           class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg 
-                                  hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
+                    <div class="flex space-x-2 mt-2">
+                        <button onclick="fetchTranscript('{{ video.id }}', this)" 
+                                data-service="chatgpt"
+                                class="ai-tool-btn">
                             <img src="/static/chatgpt.png" alt="ChatGPT" class="w-6 h-6">
-                        </a>
-                        {% endif %}
-                        {% if video.claude_url %}
-                        <a href="{{ video.claude_url }}" target="_blank"
-                           class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg
-                                  hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
+                        </button>
+                        <button onclick="fetchTranscript('{{ video.id }}', this)"
+                                data-service="claude"
+                                class="ai-tool-btn">
                             <img src="/static/claude.png" alt="Claude" class="w-6 h-6">
-                        </a>
-                        {% endif %}
-                        {% if video.gemini_url %}
-                        <a href="{{ video.gemini_url }}" target="_blank"
-                           class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg
-                                  hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
+                        </button>
+                        <button onclick="fetchTranscript('{{ video.id }}', this)"
+                                data-service="gemini"
+                                class="ai-tool-btn">
                             <img src="/static/gemini.png" alt="Gemini" class="w-6 h-6">
-                        </a>
-                        {% endif %}
+                        </button>
                     </div>
                 {% else %}
                 <div class="text-gray-500 dark:text-gray-400 text-center text-sm">No transcript available</div>
