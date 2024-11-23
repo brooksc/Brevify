@@ -251,32 +251,57 @@ window.addEventListener('message', event => {
 
     debugLog('Processing BREVIFY message', message);
     
-    // For BREVIFY_COMMAND messages, send to background script
+    // For BREVIFY_COMMAND messages, handle them directly
     if (message.type === 'BREVIFY_COMMAND') {
         const { command, params } = message;
         debugLog('Processing command', { command, params });
         
-        // Send to background script and wait for response
-        chrome.runtime.sendMessage(message, response => {
-            debugLog('Received response from background', response);
-            if (chrome.runtime.lastError) {
-                debugLog('Error in sendMessage:', chrome.runtime.lastError);
-                // Fall back to direct handling if background script fails
-                handleCommandLocally(command, params);
-                return;
-            }
-            
-            // Send response back to page
-            window.postMessage({
-                type: 'BREVIFY_RESPONSE',
-                payload: response
-            }, '*');
-        });
+        // Try background script first with a timeout
+        const timeoutMs = 500; // 500ms timeout
+        let timeoutId;
+        
+        try {
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    reject(new Error('Background script timeout'));
+                }, timeoutMs);
+            });
+
+            const messagePromise = new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage(message, response => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    } else {
+                        resolve(response);
+                    }
+                });
+            });
+
+            // Race between timeout and message
+            Promise.race([messagePromise, timeoutPromise])
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    debugLog('Background script responded', response);
+                    window.postMessage({
+                        type: 'BREVIFY_RESPONSE',
+                        payload: response
+                    }, '*');
+                })
+                .catch(error => {
+                    clearTimeout(timeoutId);
+                    debugLog('Falling back to local handling due to error:', error);
+                    handleCommandLocally(command, params);
+                });
+        } catch (error) {
+            debugLog('Error setting up message handling:', error);
+            handleCommandLocally(command, params);
+        }
+        
         return;
     }
 });
 
-// Function to handle commands locally if background script fails
+// Function to handle commands locally
 function handleCommandLocally(command, params) {
     debugLog('Handling command locally', { command, params });
     
@@ -296,13 +321,16 @@ function handleCommandLocally(command, params) {
             return;
     }
     
-    // Open the AI service in a new tab
-    window.open(url, '_blank');
-    
-    // Copy text to clipboard
-    navigator.clipboard.writeText(params.text).then(() => {
-        debugLog('Copied transcript to clipboard');
-    }).catch(error => {
-        debugLog('Error copying to clipboard:', error);
-    });
+    // Copy text to clipboard first
+    navigator.clipboard.writeText(params.text)
+        .then(() => {
+            debugLog('Copied transcript to clipboard');
+            // Only open the URL after successfully copying to clipboard
+            window.open(url, '_blank');
+        })
+        .catch(error => {
+            debugLog('Error copying to clipboard:', error);
+            // Still open the URL even if clipboard fails
+            window.open(url, '_blank');
+        });
 }
