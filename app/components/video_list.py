@@ -2,7 +2,6 @@
 
 from typing import List, Optional
 from app.models.video import Video
-from app.services.youtube_service import YouTubeService, Video as YoutubeVideo
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
@@ -12,7 +11,6 @@ class VideoList:
     def __init__(self, templates: Jinja2Templates):
         """Initialize with a Jinja2Templates instance."""
         self.templates = templates
-        self.youtube_service = YouTubeService()
         
     async def render(self, request: Request, videos: List[Video]):
         """Render the video list template"""
@@ -20,10 +18,6 @@ class VideoList:
             "video_list.html",
             {"request": request, "videos": videos}
         )
-    
-    async def get_transcript(self, video_id: str) -> Optional[str]:
-        """Get transcript for a specific video on-demand"""
-        return await self.youtube_service.get_transcript(video_id)
     
     def _clean_description(self, description: str) -> str:
         """Clean up a video description."""
@@ -62,7 +56,7 @@ class VideoList:
         description = re.sub(r'\s+', ' ', description)
         return description.strip()
     
-    def process_videos(self, videos: List[YoutubeVideo]) -> List[YoutubeVideo]:
+    def process_videos(self, videos: List[Video]) -> List[Video]:
         """Process videos to add transcripts and AI URLs."""
         from app.services.ai_url_service import AIURLService
         ai_service = AIURLService()
@@ -81,7 +75,7 @@ class VideoList:
                 
         return videos
     
-    def _render_video_card(self, video: YoutubeVideo) -> str:
+    def _render_video_card(self, video: Video) -> str:
         """Render a single video card."""
         ai_tools = []
         if video.transcript:
