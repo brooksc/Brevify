@@ -38,14 +38,42 @@
                 textarea.dispatchEvent(new Event("input", { bubbles: true }));
                 textarea.dispatchEvent(new Event("change", { bubbles: true }));
 
-                // Simulate pressing Enter
-                textarea.dispatchEvent(new KeyboardEvent("keydown", {
-                    key: "Enter",
-                    code: "Enter",
-                    keyCode: 13,
-                    which: 13,
-                    bubbles: true
-                }));
+                // Try multiple ways to trigger submit
+                setTimeout(() => {
+                    // 1. Try Enter keydown event
+                    textarea.dispatchEvent(new KeyboardEvent("keydown", {
+                        key: "Enter",
+                        code: "Enter",
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true,
+                        composed: true
+                    }));
+
+                    // 2. Try Enter keypress event
+                    textarea.dispatchEvent(new KeyboardEvent("keypress", {
+                        key: "Enter",
+                        code: "Enter",
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true,
+                        composed: true
+                    }));
+
+                    // 3. Look for submit button and click it
+                    const submitButton = textarea.form?.querySelector('button[type="submit"]') || 
+                                      document.querySelector('button[type="submit"]') ||
+                                      Array.from(document.querySelectorAll('button')).find(b => 
+                                          b.textContent.toLowerCase().includes('send') || 
+                                          b.textContent.toLowerCase().includes('submit'));
+                    
+                    if (submitButton) {
+                        console.log("Found submit button:", submitButton);
+                        submitButton.click();
+                    } else {
+                        console.log("No submit button found");
+                    }
+                }, 100); // Small delay to ensure text is properly set
             }).catch((error) => {
                 console.error("Error finding textarea:", error);
             });
