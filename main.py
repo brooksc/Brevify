@@ -32,8 +32,7 @@ app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), na
 # Setup templates
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# Initialize services
-youtube_service = YouTubeService()
+# Initialize video list component
 video_list = VideoList(templates)
 
 @app.on_event("startup")
@@ -41,8 +40,16 @@ async def on_startup():
     """Create database tables on startup."""
     create_db_and_tables()
 
+def get_youtube_service(db: Session = Depends(get_db)) -> YouTubeService:
+    """Get YouTubeService instance with database session."""
+    return YouTubeService(db)
+
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request, db: Session = Depends(get_db)):
+async def index(
+    request: Request,
+    db: Session = Depends(get_db),
+    youtube_service: YouTubeService = Depends(get_youtube_service)
+):
     """Render the main page."""
     # Get all channels and their videos
     channels = db.query(Channel).all()
@@ -60,7 +67,11 @@ async def index(request: Request, db: Session = Depends(get_db)):
     })
 
 @app.post("/api/channel")
-async def add_channel(request: Request, channel_url: str = Form(...), db: Session = Depends(get_db)):
+async def add_channel(
+    request: Request,
+    channel_url: str = Form(...),
+    youtube_service: YouTubeService = Depends(get_youtube_service)
+):
     """Add a new channel and fetch its videos."""
     try:
         # Get or create channel
@@ -81,7 +92,10 @@ async def add_channel(request: Request, channel_url: str = Form(...), db: Sessio
         return {"error": str(e)}
 
 @app.get("/api/transcript/{video_id}")
-async def get_transcript(video_id: str, db: Session = Depends(get_db)):
+async def get_transcript(
+    video_id: str,
+    youtube_service: YouTubeService = Depends(get_youtube_service)
+):
     """Get transcript for a specific video."""
     transcript = await youtube_service.get_transcript(video_id)
     if transcript:
