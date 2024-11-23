@@ -29,7 +29,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     url = 'https://chatgpt.com/';
                     break;
                 case 'claude':
-                    url = 'https://claude.ai/';
+                    url = 'https://claude.ai/chat';
                     break;
                 case 'gemini':
                     url = 'https://gemini.google.com/';
@@ -81,10 +81,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             
             return true; // Keep the message channel open for async response
         } else if (message.type === 'BREVIFY_ANALYZE') {
-            const openaiChatUrl = 'https://chat.openai.com/';
+            const { service, text } = message.payload;
+            debugLog('Processing analyze request', { service, textLength: text?.length });
+            
+            let url;
+            switch (service) {
+                case 'chatgpt':
+                    url = 'https://chatgpt.com/';
+                    break;
+                case 'claude':
+                    url = 'https://claude.ai/chat';
+                    break;
+                case 'gemini':
+                    url = 'https://gemini.google.com/';
+                    break;
+                default:
+                    throw new Error(`Unknown service: ${service}`);
+            }
             
             // Open the ChatGPT tab
-            chrome.tabs.create({ url: openaiChatUrl }, (newTab) => {
+            chrome.tabs.create({ url }, (newTab) => {
                 if (chrome.runtime.lastError) {
                     const error = chrome.runtime.lastError.message;
                     debugLog('Error opening new tab:', error);
@@ -112,7 +128,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                                 } else {
                                     debugLog('Script injected successfully');
                                     chrome.tabs.sendMessage(newTab.id, { 
-                                        selectedText: message.payload.text 
+                                        selectedText: text 
                                     });
                                 }
                             }
