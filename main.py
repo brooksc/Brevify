@@ -28,14 +28,17 @@ if not os.getenv('YOUTUBE_API_KEY'):
     logger.error("YOUTUBE_API_KEY environment variable not set")
     raise ValueError("YOUTUBE_API_KEY environment variable not set")
 
+# Get base directory
+BASE_DIR = Path(__file__).resolve().parent
+
 # Initialize FastAPI app
 app = FastAPI(title="Brevify")
 
 # Mount static directory
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Set up templates directory
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Initialize services
 youtube_service = YouTubeService()
