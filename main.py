@@ -29,6 +29,9 @@ app = FastAPI()
 # Mount static directory
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
+# Mount extension directory for development
+app.mount("/extension", StaticFiles(directory=os.path.join(BASE_DIR, "extension")), name="extension")
+
 # Setup templates
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
