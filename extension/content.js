@@ -251,43 +251,58 @@ window.addEventListener('message', event => {
 
     debugLog('Processing BREVIFY message', message);
     
-    // For BREVIFY_COMMAND messages, handle them directly
+    // For BREVIFY_COMMAND messages, send to background script
     if (message.type === 'BREVIFY_COMMAND') {
         const { command, params } = message;
         debugLog('Processing command', { command, params });
         
-        // Send directly to the appropriate service
-        switch (command) {
-            case 'chatgpt':
-                window.open(`https://chat.openai.com/`, '_blank');
-                navigator.clipboard.writeText(params.text).then(() => {
-                    debugLog('Copied transcript to clipboard');
-                });
-                break;
-            case 'claude':
-                window.open(`https://claude.ai/`, '_blank');
-                navigator.clipboard.writeText(params.text).then(() => {
-                    debugLog('Copied transcript to clipboard');
-                });
-                break;
-            case 'gemini':
-                window.open(`https://gemini.google.com/`, '_blank');
-                navigator.clipboard.writeText(params.text).then(() => {
-                    debugLog('Copied transcript to clipboard');
-                });
-                break;
-            default:
-                debugLog('Unknown command', command);
-        }
+        // Send to background script and wait for response
+        chrome.runtime.sendMessage(message, response => {
+            debugLog('Received response from background', response);
+            if (chrome.runtime.lastError) {
+                debugLog('Error in sendMessage:', chrome.runtime.lastError);
+                // Fall back to direct handling if background script fails
+                handleCommandLocally(command, params);
+                return;
+            }
+            
+            // Send response back to page
+            window.postMessage({
+                type: 'BREVIFY_RESPONSE',
+                payload: response
+            }, '*');
+        });
         return;
     }
-    
-    // For other BREVIFY messages, send to background
-    sendMessageToBackground(message, (response) => {
-        debugLog('Sending response back to page');
-        window.postMessage({
-            type: 'BREVIFY_RESPONSE',
-            payload: response
-        }, '*');
-    });
 });
+
+// Function to handle commands locally if background script fails
+function handleCommandLocally(command, params) {
+    debugLog('Handling command locally', { command, params });
+    
+    let url;
+    switch (command) {
+        case 'chatgpt':
+            url = 'https://chat.openai.com/';
+            break;
+        case 'claude':
+            url = 'https://claude.ai/';
+            break;
+        case 'gemini':
+            url = 'https://gemini.google.com/';
+            break;
+        default:
+            debugLog('Unknown command', command);
+            return;
+    }
+    
+    // Open the AI service in a new tab
+    window.open(url, '_blank');
+    
+    // Copy text to clipboard
+    navigator.clipboard.writeText(params.text).then(() => {
+        debugLog('Copied transcript to clipboard');
+    }).catch(error => {
+        debugLog('Error copying to clipboard:', error);
+    });
+}
