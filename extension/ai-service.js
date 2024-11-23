@@ -24,15 +24,26 @@
         return new Promise((resolve) => {
             const selectors = getSelectors();
             if (!selectors) {
+                console.log("Not on a supported chat site:", window.location.hostname);
                 return resolve(null);
             }
+
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds total (50 * 100ms)
 
             function checkElements() {
                 const textarea = document.querySelector(selectors.textarea);
                 const sendButton = document.querySelector(selectors.sendButton);
                 
                 if (textarea && sendButton) {
+                    console.log("Found required elements");
                     return resolve({ textarea, sendButton });
+                }
+
+                attempts++;
+                if (attempts >= maxAttempts) {
+                    console.log("Timed out waiting for elements");
+                    return resolve(null);
                 }
 
                 // If elements not found, try again after a delay
