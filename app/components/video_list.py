@@ -1,43 +1,29 @@
 """Component for rendering video lists."""
 
-from typing import List
-from app.services.youtube_service import Video
+from typing import List, Optional
+from app.models.video import Video
+from app.services.youtube_service import YouTubeService, Video as YoutubeVideo
+from fastapi import Request
+from fastapi.templating import Jinja2Templates
 
 class VideoList:
     """Component for rendering a list of videos."""
     
-    def __init__(self, videos: List[Video]):
-        """Initialize with a list of videos."""
-        self.videos = videos
+    def __init__(self, templates: Jinja2Templates):
+        """Initialize with a Jinja2Templates instance."""
+        self.templates = templates
+        self.youtube_service = YouTubeService()
         
-        # Clean up video descriptions
-        for video in self.videos:
-            video.description = self._clean_description(video.description)
+    async def render(self, request: Request, videos: List[Video]):
+        """Render the video list template"""
+        return self.templates.TemplateResponse(
+            "video_list.html",
+            {"request": request, "videos": videos}
+        )
     
-    def process_videos(self) -> List[Video]:
-        """Process videos to add transcripts and AI URLs."""
-        from app.services.ai_url_service import AIURLService
-        ai_service = AIURLService()
-        
-        for video in self.videos:
-            try:
-                from youtube_transcript_api import YouTubeTranscriptApi
-                from youtube_transcript_api.formatters import TextFormatter
-                
-                transcript_list = YouTubeTranscriptApi.get_transcript(video.id)
-                formatter = TextFormatter()
-                video.transcript = formatter.format_transcript(transcript_list)
-                
-                # Generate AI URLs
-                if video.transcript:
-                    video.chatgpt_url = ai_service.get_chatgpt_url(video.transcript)
-                    video.claude_url = ai_service.get_claude_url(video.transcript)
-                    video.gemini_url = ai_service.get_gemini_url(video.transcript)
-            except Exception as e:
-                # If transcript fails, just continue without it
-                pass
-                
-        return self.videos
+    async def get_transcript(self, video_id: str) -> Optional[str]:
+        """Get transcript for a specific video on-demand"""
+        return await self.youtube_service.get_transcript(video_id)
     
     def _clean_description(self, description: str) -> str:
         """Clean up a video description."""
@@ -76,20 +62,26 @@ class VideoList:
         description = re.sub(r'\s+', ' ', description)
         return description.strip()
     
-    def render(self) -> str:
-        """Render the video list as HTML."""
-        if not self.videos:
-            return '<div class="text-center text-gray-500">No videos found</div>'
+    def process_videos(self, videos: List[YoutubeVideo]) -> List[YoutubeVideo]:
+        """Process videos to add transcripts and AI URLs."""
+        from app.services.ai_url_service import AIURLService
+        ai_service = AIURLService()
         
-        html = ['<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">']
-        
-        for video in self.videos:
-            html.append(self._render_video_card(video))
-        
-        html.append('</div>')
-        return '\n'.join(html)
+        for video in videos:
+            try:
+                transcript = self.get_transcript(video.id)
+                if transcript:
+                    video.transcript = transcript
+                    video.chatgpt_url = ai_service.get_chatgpt_url(video.transcript)
+                    video.claude_url = ai_service.get_claude_url(video.transcript)
+                    video.gemini_url = ai_service.get_gemini_url(video.transcript)
+            except Exception as e:
+                # If transcript fails, just continue without it
+                pass
+                
+        return videos
     
-    def _render_video_card(self, video: Video) -> str:
+    def _render_video_card(self, video: YoutubeVideo) -> str:
         """Render a single video card."""
         ai_tools = []
         if video.transcript:
@@ -134,7 +126,7 @@ class VideoList:
                         {video.title}
                     </a>
                     <p class="mt-2 text-gray-600 dark:text-gray-300 text-sm line-clamp-3">
-                        {video.description}
+                        {self._clean_description(video.description)}
                     </p>
                     {ai_tools_html}
                 </div>
