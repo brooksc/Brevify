@@ -1,21 +1,25 @@
 (function () {
-    console.log("Content script injected.");
+    // Debug logging function with timestamp
+    function debugLog(message, data = null) {
+        const timestamp = new Date().toISOString();
+        console.log(`[${timestamp}] AI Service:`, message, data || '');
+    }
+
+    debugLog('Content script injected');
+    debugLog('Current domain:', window.location.hostname);
 
     // Helper function to get the appropriate selector for the current domain
     function getSelectors() {
         const domain = window.location.hostname;
+        debugLog('Getting selectors for domain:', domain);
+        
         if (domain === 'chatgpt.com') {
             return {
                 textarea: "textarea",
                 sendButton: 'button[data-testid="send-button"]'
             };
         }
-        if (domain === 'chatgpt.com') {
-            return {
-                textarea: "textarea",
-                sendButton: 'button[data-testid="send-button"]'
-            };
-        }
+        debugLog('Domain not supported');
         return null;
     }
 
@@ -24,7 +28,7 @@
         return new Promise((resolve) => {
             const selectors = getSelectors();
             if (!selectors) {
-                console.log("Not on a supported chat site:", window.location.hostname);
+                debugLog('Not on a supported chat site:', window.location.hostname);
                 return resolve(null);
             }
 
@@ -35,18 +39,23 @@
                 const textarea = document.querySelector(selectors.textarea);
                 const sendButton = document.querySelector(selectors.sendButton);
                 
+                debugLog('Checking for elements:', {
+                    hasTextarea: !!textarea,
+                    hasSendButton: !!sendButton,
+                    attempt: attempts + 1
+                });
+
                 if (textarea && sendButton) {
-                    console.log("Found required elements");
+                    debugLog('Found required elements');
                     return resolve({ textarea, sendButton });
                 }
 
                 attempts++;
                 if (attempts >= maxAttempts) {
-                    console.log("Timed out waiting for elements");
+                    debugLog('Timed out waiting for elements');
                     return resolve(null);
                 }
 
-                // If elements not found, try again after a delay
                 setTimeout(checkElements, 100);
             }
 
@@ -56,65 +65,84 @@
 
     // Listen for the message from the background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.selectedText) {
-            console.log("Received selected text:", message.selectedText);
+        try {
+            debugLog('Received message:', message);
+
+            if (!message || !message.selectedText) {
+                throw new Error('Invalid message format: missing selectedText');
+            }
 
             // Wait for both textarea and send button
             waitForElements().then((elements) => {
                 if (!elements) {
-                    console.log("Not on a supported chat site");
-                    return;
+                    throw new Error('Required elements not found on page');
                 }
 
                 const { textarea, sendButton } = elements;
-                console.log("Elements found:", { textarea, sendButton });
+                debugLog('Setting text value');
                 
-                // Set the text value
-                textarea.value = message.selectedText;
+                try {
+                    // Set the text value
+                    textarea.value = message.selectedText;
+                    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+                    textarea.dispatchEvent(new Event("change", { bubbles: true }));
 
-                // Dispatch events to notify React of the change
-                textarea.dispatchEvent(new Event("input", { bubbles: true }));
-                textarea.dispatchEvent(new Event("change", { bubbles: true }));
+                    debugLog('Text value set successfully');
 
-                // Create and dispatch an Enter keydown event at the document level
-                const enterEvent = new KeyboardEvent("keydown", {
-                    key: "Enter",
-                    code: "Enter",
-                    keyCode: 13,
-                    which: 13,
-                    bubbles: true,
-                    composed: true,
-                    cancelable: true
-                });
+                    // Create and dispatch an Enter keydown event
+                    const enterEvent = new KeyboardEvent("keydown", {
+                        key: "Enter",
+                        code: "Enter",
+                        keyCode: 13,
+                        which: 13,
+                        bubbles: true,
+                        composed: true,
+                        cancelable: true
+                    });
 
-                // Wait a bit for React to process the change
-                setTimeout(() => {
-                    console.log("Dispatching Enter event");
-                    document.dispatchEvent(enterEvent);
-                    
-                    // As a backup, also click the button directly
-                    if (!enterEvent.defaultPrevented) {
-                        console.log("Enter event not handled, clicking button directly");
-                        sendButton.click();
-                    }
-                }, 500);
+                    // Wait for React to process the change
+                    setTimeout(() => {
+                        debugLog('Dispatching Enter event');
+                        document.dispatchEvent(enterEvent);
+                        
+                        // As a backup, also click the button directly
+                        if (!enterEvent.defaultPrevented) {
+                            debugLog('Enter event not handled, clicking button directly');
+                            sendButton.click();
+                        }
+                    }, 500);
+                } catch (error) {
+                    debugLog('Error setting text or submitting:', error.message);
+                    throw error;
+                }
             }).catch((error) => {
-                console.error("Error finding elements:", error);
+                debugLog('Error in waitForElements:', error.message);
+                throw error;
             });
+        } catch (error) {
+            debugLog('Error processing message:', error.message);
+            if (sendResponse) {
+                sendResponse({ error: error.message });
+            }
         }
     });
 
     // Add a global keydown listener for regular Enter key usage
     document.addEventListener('keydown', function(event) {
-        const selectors = getSelectors();
-        if (!selectors) return;
+        try {
+            const selectors = getSelectors();
+            if (!selectors) return;
 
-        if (event.keyCode === 13 && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
-            const sendButton = document.querySelector(selectors.sendButton);
-            if (sendButton) {
-                event.preventDefault();
-                sendButton.click();
+            if (event.keyCode === 13 && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+                const sendButton = document.querySelector(selectors.sendButton);
+                if (sendButton) {
+                    event.preventDefault();
+                    debugLog('Enter key pressed, clicking send button');
+                    sendButton.click();
+                }
             }
+        } catch (error) {
+            debugLog('Error in keydown handler:', error.message);
         }
     });
 })();
