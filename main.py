@@ -11,7 +11,7 @@ from sqlmodel import Session
 from app.services.youtube_service import YouTubeService
 from app.components.video_list import VideoList
 from app.db.database import get_db, create_db_and_tables
-from app.models.models import Channel, Video
+from app.models.models import Channel
 
 # Configure logging
 logging.basicConfig(
@@ -45,13 +45,10 @@ def get_youtube_service(db: Session = Depends(get_db)) -> YouTubeService:
     return YouTubeService(db)
 
 @app.get("/", response_class=HTMLResponse)
-async def index(
-    request: Request,
-    db: Session = Depends(get_db),
-    youtube_service: YouTubeService = Depends(get_youtube_service)
-):
+async def index(request: Request, youtube_service: YouTubeService = Depends(get_youtube_service)):
     """Render the main page."""
     # Get all channels and their videos
+    db = youtube_service.db
     channels = db.query(Channel).all()
     videos = []
     for channel in channels:
