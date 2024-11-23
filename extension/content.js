@@ -164,7 +164,21 @@ async function init() {
 // Function to send message to background script
 function sendMessageToBackground(message, callback) {
     debugLog('Sending message to background', message);
-    chrome.runtime.sendMessage(message, callback);
+    try {
+        if (callback) {
+            chrome.runtime.sendMessage(message, (response) => {
+                if (chrome.runtime.lastError) {
+                    debugLog('Error in sendMessage:', chrome.runtime.lastError);
+                    return;
+                }
+                callback(response);
+            });
+        } else {
+            chrome.runtime.sendMessage(message);
+        }
+    } catch (error) {
+        debugLog('Error sending message:', error);
+    }
 }
 
 // Watch for navigation events
