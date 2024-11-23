@@ -1,12 +1,6 @@
 (function () {
     console.log("Content script injected.");
 
-    // Check if we're on ChatGPT
-    const currentDomain = window.location.hostname;
-    if (!currentDomain.includes('chat.openai.com')) {
-        return;
-    }
-
     // Wait for the textarea and button to be available
     function waitForElements() {
         return new Promise((resolve) => {
@@ -70,12 +64,12 @@
         }
     });
 
-    // Add a global keydown listener like the other extension
+    // Add a global keydown listener for regular Enter key usage
     document.addEventListener('keydown', function(event) {
         if (event.keyCode === 13 && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
-            event.preventDefault();
             const sendButton = document.querySelector('button[data-testid="send-button"]');
             if (sendButton) {
+                event.preventDefault();
                 sendButton.click();
             }
         }
