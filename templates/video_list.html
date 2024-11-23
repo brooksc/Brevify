@@ -36,11 +36,14 @@
                             button.disabled = false;
                             
                             // Send transcript to AI service
-                            chrome.runtime.sendMessage({
-                                action: "openAIChat",
-                                selectedText: data.transcript,
-                                service: button.dataset.service
-                            });
+                            window.postMessage({
+                                type: 'BREVIFY_COMMAND',
+                                command: button.dataset.service,
+                                params: {
+                                    text: data.transcript,
+                                    title: button.closest('.video-card').dataset.title
+                                }
+                            }, '*');
                         } else {
                             button.innerHTML = '❌ No transcript';
                             button.disabled = true;
@@ -52,27 +55,26 @@
                     }
                 }
                 </script>
-                {% if video.transcript %}
-                    <div class="flex space-x-2 mt-2">
-                        <button onclick="fetchTranscript('{{ video.id }}', this)" 
-                                data-service="chatgpt"
-                                class="ai-tool-btn">
-                            <img src="/static/chatgpt.png" alt="ChatGPT" class="w-6 h-6">
-                        </button>
-                        <button onclick="fetchTranscript('{{ video.id }}', this)"
-                                data-service="claude"
-                                class="ai-tool-btn">
-                            <img src="/static/claude.png" alt="Claude" class="w-6 h-6">
-                        </button>
-                        <button onclick="fetchTranscript('{{ video.id }}', this)"
-                                data-service="gemini"
-                                class="ai-tool-btn">
-                            <img src="/static/gemini.png" alt="Gemini" class="w-6 h-6">
-                        </button>
-                    </div>
-                {% else %}
-                <div class="text-gray-500 dark:text-gray-400 text-center text-sm">No transcript available</div>
-                {% endif %}
+                <div class="flex space-x-2 mt-2" data-title="{{ video.title }}">
+                    <button onclick="fetchTranscript('{{ video.id }}', this)" 
+                            data-service="chatgpt"
+                            class="ai-tool-btn bg-gray-100 dark:bg-gray-700 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <img src="/static/chatgpt.png" alt="ChatGPT" class="w-6 h-6">
+                        <span class="sr-only">Analyze with ChatGPT</span>
+                    </button>
+                    <button onclick="fetchTranscript('{{ video.id }}', this)"
+                            data-service="claude"
+                            class="ai-tool-btn bg-gray-100 dark:bg-gray-700 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <img src="/static/claude.png" alt="Claude" class="w-6 h-6">
+                        <span class="sr-only">Analyze with Claude</span>
+                    </button>
+                    <button onclick="fetchTranscript('{{ video.id }}', this)"
+                            data-service="gemini"
+                            class="ai-tool-btn bg-gray-100 dark:bg-gray-700 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <img src="/static/gemini.png" alt="Gemini" class="w-6 h-6">
+                        <span class="sr-only">Analyze with Gemini</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
