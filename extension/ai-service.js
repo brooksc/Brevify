@@ -37,6 +37,15 @@
                 // Dispatch events to notify React of the change
                 textarea.dispatchEvent(new Event("input", { bubbles: true }));
                 textarea.dispatchEvent(new Event("change", { bubbles: true }));
+
+                // Simulate pressing Enter
+                textarea.dispatchEvent(new KeyboardEvent("keydown", {
+                    key: "Enter",
+                    code: "Enter",
+                    keyCode: 13,
+                    which: 13,
+                    bubbles: true
+                }));
             }).catch((error) => {
                 console.error("Error finding textarea:", error);
             });
