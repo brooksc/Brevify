@@ -4,14 +4,16 @@ import os
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 from app.services.youtube_service import YouTubeService
 from app.services.ai_url_service import AIURLService
 from app.services.url_service import URLService
 from app.components.video_list import VideoList
+from app.db.database import get_db
 
 # Configure logging
 logging.basicConfig(
@@ -47,7 +49,7 @@ url_service = URLService()
 video_list = VideoList(templates)
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request, db: Session = Depends(get_db)):
     """Render the main page."""
     saved_channels = url_service.get_saved_channels()
     return templates.TemplateResponse("index.html", {
@@ -56,7 +58,7 @@ async def index(request: Request):
     })
 
 @app.post("/save-url")
-async def save_url(channel_url: str = Form(...)):
+async def save_url(channel_url: str = Form(...), db: Session = Depends(get_db)):
     """Save a channel URL."""
     if not channel_url:
         return {"error": "Please provide a YouTube channel URL"}
@@ -75,7 +77,7 @@ async def save_url(channel_url: str = Form(...)):
     return {"error": "Failed to save URL"}
 
 @app.post("/fetch-videos")
-async def fetch_videos(request: Request, channel_url: str = Form(...)):
+async def fetch_videos(request: Request, channel_url: str = Form(...), db: Session = Depends(get_db)):
     """Fetch videos from a YouTube channel."""
     logger.debug(f"Received channel URL: {channel_url}")
     
@@ -101,7 +103,7 @@ async def fetch_videos(request: Request, channel_url: str = Form(...)):
         return {"error": str(e)}
 
 @app.get("/api/transcript/{video_id}")
-async def get_transcript(video_id: str):
+async def get_transcript(video_id: str, db: Session = Depends(get_db)):
     """Get transcript for a specific video."""
     transcript = await video_list.get_transcript(video_id)
     if transcript:
