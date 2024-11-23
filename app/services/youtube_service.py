@@ -4,9 +4,12 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
-from sqlalchemy.orm import Session
-from app.models.db_models import Channel, Video as DBVideo
+from sqlmodel import Session, select
+from app.models.models import Channel, Video
 from app.db.database import get_db
+from googleapiclient.discovery import build
+import os
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,10 @@ class YouTubeService:
     def __init__(self):
         """Initialize the service."""
         self.db = next(get_db())
+        self.youtube = None
+        api_key = os.getenv('YOUTUBE_API_KEY')
+        if api_key:
+            self.youtube = build('youtube', 'v3', developerKey=api_key)
 
     async def get_channel_info(self, channel_url: str) -> Optional[Channel]:
         """Get channel info, first checking cache then YouTube."""
@@ -23,7 +30,8 @@ class YouTubeService:
         channel_id = self._extract_channel_id(channel_url)
         
         # Check cache first
-        cached_channel = self.db.query(Channel).filter(Channel.id == channel_id).first()
+        statement = select(Channel).where(Channel.id == channel_id)
+        cached_channel = self.db.exec(statement).first()
         if cached_channel and self._is_cache_fresh(cached_channel.last_fetched):
             return cached_channel
 
@@ -35,23 +43,24 @@ class YouTubeService:
                 for key, value in channel_info.items():
                     setattr(cached_channel, key, value)
                 cached_channel.last_fetched = datetime.utcnow()
+                self.db.add(cached_channel)
             else:
                 # Create new channel
                 cached_channel = Channel(**channel_info)
                 self.db.add(cached_channel)
             
             self.db.commit()
+            self.db.refresh(cached_channel)
             return cached_channel
         except Exception as e:
             logger.error(f"Error fetching channel info: {e}")
             return cached_channel if cached_channel else None
 
-    async def get_videos(self, channel_id: str) -> List[DBVideo]:
+    async def get_videos(self, channel_id: str) -> List[Video]:
         """Get videos for a channel, using cache when possible."""
         # Check cache first
-        cached_videos = self.db.query(DBVideo).filter(
-            DBVideo.channel_id == channel_id
-        ).order_by(DBVideo.published_at.desc()).all()
+        statement = select(Video).where(Video.channel_id == channel_id).order_by(Video.published_at.desc())
+        cached_videos = self.db.exec(statement).all()
 
         # Get latest video date
         latest_date = None
@@ -60,17 +69,20 @@ class YouTubeService:
 
         # Fetch new videos from YouTube
         try:
-            new_videos = self._fetch_videos_from_youtube(channel_id, after_date=latest_date)
-            for video_info in new_videos:
-                video = DBVideo(**video_info)
+            new_videos_data = self._fetch_videos_from_youtube(channel_id, after_date=latest_date)
+            new_videos = []
+            for video_data in new_videos_data:
+                video = Video(**video_data)
                 self.db.add(video)
+                new_videos.append(video)
             
-            self.db.commit()
+            if new_videos:
+                self.db.commit()
+                for video in new_videos:
+                    self.db.refresh(video)
+                cached_videos.extend(new_videos)
             
-            # Return all videos, including new ones
-            return self.db.query(DBVideo).filter(
-                DBVideo.channel_id == channel_id
-            ).order_by(DBVideo.published_at.desc()).all()
+            return sorted(cached_videos, key=lambda x: x.published_at, reverse=True)
         except Exception as e:
             logger.error(f"Error fetching videos: {e}")
             return cached_videos if cached_videos else []
@@ -78,7 +90,8 @@ class YouTubeService:
     async def get_transcript(self, video_id: str) -> Optional[str]:
         """Get transcript for a video, using cache when possible."""
         # Check cache first
-        video = self.db.query(DBVideo).filter(DBVideo.id == video_id).first()
+        statement = select(Video).where(Video.id == video_id)
+        video = self.db.exec(statement).first()
         if video and video.transcript:
             return video.transcript
 
@@ -92,7 +105,9 @@ class YouTubeService:
             if video:
                 video.transcript = transcript
                 video.transcript_fetched = datetime.utcnow()
+                self.db.add(video)
                 self.db.commit()
+                self.db.refresh(video)
 
             return transcript
         except Exception as e:
@@ -107,76 +122,52 @@ class YouTubeService:
 
     def _extract_channel_id(self, url: str) -> str:
         """Extract channel ID from URL."""
+        if not self.youtube:
+            raise ValueError("YouTube API key not configured")
+
         # Handle @username format
         if '@' in url:
             username = url.split('@')[-1].split('/')[0]
-            logger.debug(f"Found username: {username}")
+            request = self.youtube.search().list(
+                part='snippet',
+                q=username,
+                type='channel',
+                maxResults=1
+            )
+            response = request.execute()
             
-            # Search for the channel
-            try:
-                api_key = os.getenv('YOUTUBE_API_KEY')
-                youtube = build('youtube', 'v3', developerKey=api_key)
-                request = youtube.search().list(
-                    part='snippet',
-                    q=username,
-                    type='channel',
-                    maxResults=1
-                )
-                response = request.execute()
-                
-                if response['items']:
-                    channel_id = response['items'][0]['id']['channelId']
-                    logger.debug(f"Found channel ID for username: {channel_id}")
-                    return channel_id
-                else:
-                    raise ValueError(f"Could not find channel for username: {username}")
-            except Exception as e:
-                logger.error(f"Error searching for channel: {str(e)}")
-                raise ValueError(f"Could not find channel: {str(e)}")
-        
-        # Handle standard URL formats
-        parsed_url = urlparse(url)
-        path_parts = parsed_url.path.split('/')
-        
+            if response['items']:
+                return response['items'][0]['id']['channelId']
+            raise ValueError(f"Could not find channel for username: {username}")
+            
+        # Handle direct channel URLs
         if '/channel/' in url:
-            channel_id = path_parts[path_parts.index('channel') + 1]
-            logger.debug(f"Found channel ID in URL: {channel_id}")
-            return channel_id
-        elif '/c/' in url or '/user/' in url:
-            # Handle custom URLs
-            custom_id = path_parts[-1]
-            logger.debug(f"Found custom URL: {custom_id}")
+            return url.split('/channel/')[-1].split('/')[0]
             
-            try:
-                api_key = os.getenv('YOUTUBE_API_KEY')
-                youtube = build('youtube', 'v3', developerKey=api_key)
-                request = youtube.search().list(
-                    part='snippet',
-                    q=custom_id,
-                    type='channel',
-                    maxResults=1
-                )
-                response = request.execute()
-                
-                if response['items']:
-                    channel_id = response['items'][0]['id']['channelId']
-                    logger.debug(f"Found channel ID for custom URL: {channel_id}")
-                    return channel_id
-                else:
-                    raise ValueError(f"Could not find channel for custom URL: {custom_id}")
-            except Exception as e:
-                logger.error(f"Error searching for channel: {str(e)}")
-                raise ValueError(f"Could not find channel: {str(e)}")
-        
-        logger.error("Invalid YouTube channel URL format")
+        # Handle custom URLs
+        if '/c/' in url or '/user/' in url:
+            custom_id = url.split('/')[-1]
+            request = self.youtube.search().list(
+                part='snippet',
+                q=custom_id,
+                type='channel',
+                maxResults=1
+            )
+            response = request.execute()
+            
+            if response['items']:
+                return response['items'][0]['id']['channelId']
+            raise ValueError(f"Could not find channel for custom URL: {custom_id}")
+            
         raise ValueError("Invalid YouTube channel URL format")
 
     def _fetch_channel_from_youtube(self, channel_id: str) -> dict:
         """Fetch channel info from YouTube."""
+        if not self.youtube:
+            raise ValueError("YouTube API key not configured")
+
         try:
-            api_key = os.getenv('YOUTUBE_API_KEY')
-            youtube = build('youtube', 'v3', developerKey=api_key)
-            channel_response = youtube.channels().list(
+            channel_response = self.youtube.channels().list(
                 part='snippet,contentDetails',
                 id=channel_id
             ).execute()
@@ -189,7 +180,8 @@ class YouTubeService:
                 'id': channel_info['id'],
                 'title': channel_info['snippet']['title'],
                 'description': channel_info['snippet']['description'],
-                'thumbnail_url': channel_info['snippet']['thumbnails']['high']['url']
+                'thumbnail_url': channel_info['snippet']['thumbnails']['high']['url'],
+                'url': f"https://youtube.com/channel/{channel_info['id']}"
             }
         except Exception as e:
             logger.error(f"Error fetching channel info: {e}")
@@ -197,12 +189,12 @@ class YouTubeService:
 
     def _fetch_videos_from_youtube(self, channel_id: str, after_date: Optional[datetime] = None) -> List[dict]:
         """Fetch videos from YouTube."""
+        if not self.youtube:
+            raise ValueError("YouTube API key not configured")
+
         try:
-            api_key = os.getenv('YOUTUBE_API_KEY')
-            youtube = build('youtube', 'v3', developerKey=api_key)
-            
             # Get channel's uploads playlist
-            channel_response = youtube.channels().list(
+            channel_response = self.youtube.channels().list(
                 part='contentDetails',
                 id=channel_id
             ).execute()
@@ -211,44 +203,34 @@ class YouTubeService:
                 raise ValueError("Channel not found")
             
             playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-            logger.debug(f"Found uploads playlist: {playlist_id}")
             
             # Get videos from uploads playlist
-            videos_response = youtube.playlistItems().list(
+            videos_response = self.youtube.playlistItems().list(
                 part='snippet',
                 playlistId=playlist_id,
-                maxResults=10
+                maxResults=50  # Increased to get more videos
             ).execute()
             
             videos = []
             for item in videos_response['items']:
-                video_id = item['snippet']['resourceId']['videoId']
-                logger.debug(f"Processing video: {video_id}")
+                snippet = item['snippet']
+                published_at = datetime.strptime(snippet['publishedAt'], '%Y-%m-%dT%H:%M:%SZ')
                 
-                video = {
-                    'id': video_id,
-                    'title': item['snippet']['title'],
-                    'description': item['snippet']['description'],
-                    'thumbnail_url': item['snippet']['thumbnails']['high']['url'],
-                    'published_at': item['snippet']['publishedAt'],
-                    'channel_id': channel_id
+                # Skip if we already have newer videos
+                if after_date and published_at <= after_date:
+                    continue
+                
+                video_data = {
+                    'id': snippet['resourceId']['videoId'],
+                    'channel_id': channel_id,
+                    'title': snippet['title'],
+                    'description': snippet['description'],
+                    'thumbnail_url': snippet['thumbnails']['high']['url'],
+                    'published_at': published_at,
+                    'url': f"https://youtube.com/watch?v={snippet['resourceId']['videoId']}"
                 }
-                
-                # Try to get transcript
-                try:
-                    logger.debug(f"Fetching transcript for video {video_id}")
-                    transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
-                    formatter = TextFormatter()
-                    transcript = formatter.format_transcript(transcript_list)
-                    video['transcript'] = transcript
-                    logger.debug("Transcript fetched successfully")
-                except Exception as e:
-                    logger.warning(f"Could not get transcript for video {video_id}: {str(e)}")
-                    video['transcript'] = None
-                
-                videos.append(video)
+                videos.append(video_data)
             
-            logger.debug(f"Successfully fetched {len(videos)} videos")
             return videos
         except Exception as e:
             logger.error(f"Error fetching videos: {e}")
