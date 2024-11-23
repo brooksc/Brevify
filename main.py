@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from app.services.youtube_service import YouTubeService
 from app.services.ai_url_service import AIURLService
 from app.services.url_service import URLService
@@ -29,6 +30,9 @@ if not os.getenv('YOUTUBE_API_KEY'):
 
 # Initialize FastAPI app
 app = FastAPI(title="Brevify")
+
+# Mount static directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Set up templates directory
 templates = Jinja2Templates(directory="templates")
