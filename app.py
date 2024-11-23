@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Brevify - YouTube Learning Assistant
+Brevify - Your Shortcut to YouTube Wisdom
 Main application file using Flask framework
 """
 from flask import Flask, render_template, request, jsonify

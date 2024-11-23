@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Brevify",
+  "name": "Brevify - Your Shortcut to YouTube Wisdom",
   "version": "1.0",
-  "description": "Opens AI assistants with selected text and inputs it into the prompt box.",
+  "description": "Transform YouTube videos into personalized learning experiences with AI-powered analysis.",
   "permissions": [
     "contextMenus",
     "storage",
@@ -14,6 +14,7 @@
   ],
   "host_permissions": [
     "http://localhost:8888/*",
+    "http://127.0.0.1:8888/*",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*"
@@ -24,31 +25,26 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost:8888/*"
+        "http://localhost:8888/*",
+        "http://127.0.0.1:8888/*"
       ],
       "js": ["content.js"]
     },
     {
       "matches": [
-        "https://chatgpt.com/*",
-        "https://claude.ai/*",
-        "https://gemini.google.com/*"
+        "https://www.youtube.com/*"
       ],
-      "js": ["ai-service.js"]
+      "js": ["youtube.js"]
     }
   ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Brevify"
+  },
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "action": {
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
   }
 }

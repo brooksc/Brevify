@@ -6,3 +6,5 @@ google-api-python-client>=2.0.0
 youtube-transcript-api>=0.6.0
 python-dotenv>=1.0.0
 httpx>=0.24.0
+sqlalchemy>=2.0.23
+alembic>=1.12.1

@@ -1,0 +1,2 @@
+#!/bin/sh
+python3 `which uvicorn` main:app --reload --port 8888 --log-level debug

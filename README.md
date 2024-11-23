@@ -1,6 +1,6 @@
-# Brevify: YouTube Learning Assistant
+# Brevify: Your Shortcut to YouTube Wisdom
 
-Transform YouTube videos into quick, insightful learning experiences by leveraging your existing AI subscriptions.
+Unlock deeper understanding from YouTube content by seamlessly connecting video transcripts with your preferred AI assistant.
 
 ## Overview
 
@@ -19,6 +19,12 @@ Brevify helps you learn faster from YouTube content by seamlessly connecting vid
   - Gemini support
   - Custom prompt templates
 
+- [✓] **Chrome Extension**
+  - Seamless integration with AI services
+  - Automatic transcript injection
+  - Support for multiple AI platforms
+  - Easy installation and setup
+
 - [✓] **Modern UI**
   - Responsive design
   - Dark/Light mode
@@ -28,14 +34,16 @@ Brevify helps you learn faster from YouTube content by seamlessly connecting vid
 ## Prerequisites
 
 - Python 3.8 or higher
-- Modern web browser (Chrome, Firefox, or Safari)
+- Google Chrome browser
 - YouTube Data API key
 - Subscription to at least one AI service:
   - OpenAI ChatGPT
   - Anthropic Claude
   - Google Gemini
 
-## Getting a YouTube API Key
+## Getting Started
+
+### 1. YouTube API Setup
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
@@ -47,12 +55,8 @@ Brevify helps you learn faster from YouTube content by seamlessly connecting vid
    - Go to "APIs & Services" > "Credentials"
    - Click "Create Credentials" > "API Key"
    - Copy your new API key
-5. (Optional) Restrict the API key:
-   - Click on the newly created API key
-   - Under "Application restrictions", choose "HTTP referrers"
-   - Under "API restrictions", select "YouTube Data API v3"
 
-## Environment Setup
+### 2. Environment Setup
 
 1. Create a `.env` file in the project root:
    ```bash
@@ -62,27 +66,9 @@ Brevify helps you learn faster from YouTube content by seamlessly connecting vid
 2. Add your YouTube API key to the `.env` file:
    ```
    YOUTUBE_API_KEY=your_api_key_here
-   FLASK_ENV=development
-   FLASK_APP=app.py
    ```
 
-3. (Optional) Add rate limiting settings:
-   ```
-   YOUTUBE_QUOTA_PER_DAY=10000  # Default YouTube quota
-   RATE_LIMIT_PER_MINUTE=60     # API requests per minute
-   ```
-
-4. Make sure to add `.env` to your `.gitignore` to keep your API key secure:
-   ```bash
-   echo ".env" >> .gitignore
-   ```
-
-> **Note**: The YouTube API has a daily quota limit. The free tier provides 10,000 units per day. Each API operation costs a different number of units:
-> - Video caption retrieval: 50-100 units
-> - Video metadata: 1-2 units
-> - Channel information: 1-3 units
-
-## Installation
+### 3. Backend Installation
 
 1. Clone the repository:
    ```bash
@@ -103,68 +89,73 @@ Brevify helps you learn faster from YouTube content by seamlessly connecting vid
 
 4. Start the development server:
    ```bash
-   python app.py
+   ./start
    ```
+   This will start the server on `http://localhost:8888`
 
-5. Open your browser and navigate to `http://localhost:5000`
+### 4. Chrome Extension Installation
+
+1. Open Google Chrome and navigate to `chrome://extensions`
+2. Enable "Developer mode" in the top right
+3. Click "Load unpacked" and select the `extension` directory from the project
+4. The Brevify extension icon should appear in your Chrome toolbar
 
 ## Usage
 
-1. **Enter YouTube URL**
-   - Paste any YouTube video URL
-   - The system will fetch the transcript and metadata
+1. **Start the Server**
+   - Make sure the backend server is running on `localhost:8888`
+   - You should see the Brevify web interface when you visit the URL
 
-2. **Choose AI Assistant**
-   - Select your preferred AI assistant
-   - Each button opens in a new tab with the transcript and prompt
+2. **Enter YouTube URL**
+   - Paste any YouTube video URL into the input field
+   - The system will fetch the video information and transcript
 
-3. **Customize Analysis**
-   - Use default prompts or create your own
-   - Focus on key points, summaries, or detailed analysis
+3. **Analyze with AI**
+   - Click on any of the AI assistant buttons (ChatGPT, Claude, or Gemini)
+   - The extension will automatically:
+     - Open the AI service in a new tab
+     - Inject the transcript
+     - Apply learning-focused prompts
 
 4. **Review Insights**
-   - Get AI-powered analysis of the video content
-   - Save or share interesting insights
+   - The AI assistant will analyze the transcript
+   - Get detailed insights about the video content
+   - Ask follow-up questions for deeper understanding
 
-## Development
-
-### Project Structure
+## Project Structure
 ```
 brevify/
-├── app.py              # Flask application
+├── app.py              # FastAPI application
+├── extension/          # Chrome extension
+│   ├── manifest.json   # Extension configuration
+│   ├── content.js      # Content script
+│   ├── background.js   # Background worker
+│   └── ai-service.js   # AI service integration
+├── templates/          # HTML templates
 ├── static/            
-│   ├── css/           # Tailwind CSS
+│   ├── css/           # Styles
 │   └── js/            # Frontend JavaScript
-├── templates/         # HTML templates
-├── tests/             # Test suite
-└── requirements.txt   # Python dependencies
+└── requirements.txt    # Python dependencies
 ```
-
-### Running Tests
-```bash
-pytest
-```
-
-### Code Style
-- Python: Follow PEP 8
-- JavaScript: ESLint configuration
-- HTML/CSS: Prettier formatting
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Invalid YouTube URL**
+1. **Extension Not Detected**
+   - Make sure the extension is properly installed
+   - Check if it's enabled in Chrome extensions
+   - Try reloading the extension
+   - Refresh the Brevify webpage
+
+2. **Invalid YouTube URL**
    - Ensure the URL is from youtube.com
    - Check if the video has captions/transcripts
 
-2. **API Key Issues**
-   - Verify your YouTube API key is valid
-   - Check quota limits
-
-3. **Transcript Not Available**
-   - Some videos don't have transcripts
-   - Try videos with manual captions
+3. **AI Service Issues**
+   - Verify you're logged into the AI service
+   - Check if the service is accessible in your region
+   - Make sure you have an active subscription
 
 ## Contributing
 
@@ -183,3 +174,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Local storage for settings
 - CORS protection enabled
 - Input sanitization
+- Secure extension messaging
