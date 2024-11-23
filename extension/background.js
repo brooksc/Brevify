@@ -59,9 +59,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                             } else {
                                 debugLog('Script injected successfully');
                                 chrome.tabs.sendMessage(newTab.id, { 
-                                    type: 'BREVIFY_SET_TEXT',
-                                    text: params.text,
-                                    title: params.title
+                                    selectedText: params.text
                                 });
                                 sendResponse({ success: true });
                             }
@@ -73,7 +71,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         return true; // Keep the message channel open for async response
     } else if (message.type === 'BREVIFY_ANALYZE') {
-        const openaiChatUrl = 'https://chatgpt.com/';
+        const openaiChatUrl = 'https://chat.openai.com/';
         
         // Open the ChatGPT tab
         chrome.tabs.create({ url: openaiChatUrl }, (newTab) => {
