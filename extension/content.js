@@ -1,44 +1,6 @@
 // Constants
 const BREVIFY_API = 'http://localhost:8888';
 
-// State
-let currentVideoId = null;
-
-// Helper Functions
-function getVideoId() {
-    const url = new URL(window.location.href);
-    return url.searchParams.get('v');
-}
-
-function createBrevifyButton() {
-    const button = document.createElement('button');
-    button.className = 'brevify-button';
-    button.textContent = 'Brevify';
-    button.title = 'Analyze with AI';
-    return button;
-}
-
-function createAIToolsDropdown() {
-    const dropdown = document.createElement('div');
-    dropdown.className = 'brevify-dropdown';
-    
-    const services = [
-        { id: 'chatgpt', name: 'ChatGPT', url: 'https://chat.openai.com/' },
-        { id: 'claude', name: 'Claude', url: 'https://claude.ai/' },
-        { id: 'gemini', name: 'Gemini', url: 'https://gemini.google.com/' }
-    ];
-    
-    services.forEach(service => {
-        const item = document.createElement('button');
-        item.className = 'brevify-dropdown-item';
-        item.textContent = `Analyze with ${service.name}`;
-        item.dataset.service = service.id;
-        dropdown.appendChild(item);
-    });
-    
-    return dropdown;
-}
-
 // Debug logging function
 function debugLog(message, data = null) {
     const style = 'background: #0066cc; color: white; padding: 2px 5px; border-radius: 3px;';
@@ -51,173 +13,41 @@ function debugLog(message, data = null) {
 
 // Log when content script loads
 debugLog('Content script loaded');
+debugLog('Initializing');
 
-// Main Functions
-async function checkTranscript(videoId) {
-    try {
-        const response = await fetch(`${BREVIFY_API}/check/${videoId}`);
-        const data = await response.json();
-        return data.exists;
-    } catch (error) {
-        debugLog('Error checking transcript', error);
-        return false;
-    }
-}
-
-async function injectBrevifyButton() {
-    try {
-        // Wait for the menu container
-        const menuContainer = await waitForElement('#above-the-fold #top-level-buttons-computed');
-        if (!menuContainer) {
-            debugLog('Menu container not found');
+// Function to handle commands
+function handleCommand(command, params) {
+    debugLog('Handling command', { command, params });
+    
+    let url;
+    switch (command) {
+        case 'chatgpt':
+            url = 'https://chat.openai.com/';
+            break;
+        case 'claude':
+            url = 'https://claude.ai/';
+            break;
+        case 'gemini':
+            url = 'https://gemini.google.com/';
+            break;
+        default:
+            debugLog('Unknown command', command);
             return;
-        }
-        
-        // Create button container
-        const container = document.createElement('div');
-        container.className = 'brevify-container';
-        
-        // Create main button
-        const button = createBrevifyButton();
-        container.appendChild(button);
-        
-        // Create dropdown
-        const dropdown = createAIToolsDropdown();
-        container.appendChild(dropdown);
-        
-        // Add click handlers
-        dropdown.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('brevify-dropdown-item')) {
-                const service = e.target.dataset.service;
-                debugLog('Service selected', service);
-                
-                // Get video ID
-                const videoId = getVideoId();
-                if (!videoId) {
-                    debugLog('No video ID found');
-                    return;
-                }
-                
-                // Send message to analyze
-                sendMessageToBackground({
-                    type: 'BREVIFY_ANALYZE',
-                    payload: {
-                        videoId,
-                        service
-                    }
-                });
-            }
-        });
-        
-        // Insert into page
-        menuContainer.appendChild(container);
-        debugLog('Button injected successfully');
-        
-    } catch (error) {
-        debugLog('Error injecting button', error);
     }
-}
-
-// Function to wait for an element using MutationObserver
-function waitForElement(selector, timeout = 10000) {
-    return new Promise((resolve) => {
-        const element = document.querySelector(selector);
-        if (element) {
-            return resolve(element);
-        }
-
-        const observer = new MutationObserver((mutations, obs) => {
-            const element = document.querySelector(selector);
-            if (element) {
-                obs.disconnect();
-                resolve(element);
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
-        setTimeout(() => {
-            observer.disconnect();
-            resolve(null);
-        }, timeout);
-    });
-}
-
-// Initialize
-async function init() {
-    debugLog('Initializing');
     
-    const videoId = getVideoId();
-    if (videoId && videoId !== currentVideoId) {
-        currentVideoId = videoId;
-        debugLog('New video detected', videoId);
-        
-        if (await checkTranscript(videoId)) {
-            injectBrevifyButton();
-        }
-    }
-}
-
-// Function to send message to background script
-function sendMessageToBackground(message, callback) {
-    debugLog('Sending message to background', message);
-    try {
-        if (callback) {
-            chrome.runtime.sendMessage(message, (response) => {
-                if (chrome.runtime.lastError) {
-                    debugLog('Error in sendMessage:', chrome.runtime.lastError);
-                    return;
-                }
-                callback(response);
-            });
-        } else {
-            chrome.runtime.sendMessage(message);
-        }
-    } catch (error) {
-        debugLog('Error sending message:', error);
-    }
-}
-
-// Watch for navigation events
-let lastUrl = location.href;
-new MutationObserver(() => {
-    const url = location.href;
-    if (url !== lastUrl) {
-        lastUrl = url;
-        debugLog('URL changed', url);
-        init();
-    }
-}).observe(document, { subtree: true, childList: true });
-
-// Initial load
-init();
-
-// Listen for messages from the extension
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    debugLog('Received message from extension', { message, sender });
-    
-    if (message.type === 'BREVIFY_ANALYZE') {
-        debugLog('Processing analyze request', message.payload);
-        sendMessageToBackground(message, (response) => {
-            debugLog('Received response from background', response);
-            if (chrome.runtime.lastError) {
-                debugLog('Error sending message', chrome.runtime.lastError);
-                return;
-            }
-            // Forward response to page if needed
-            if (message.type.startsWith('BREVIFY_')) {
-                window.postMessage({
-                    type: 'BREVIFY_RESPONSE',
-                    payload: response
-                }, '*');
-            }
+    // Copy text to clipboard first
+    navigator.clipboard.writeText(params.text)
+        .then(() => {
+            debugLog('Copied transcript to clipboard');
+            // Only open the URL after successfully copying to clipboard
+            window.open(url, '_blank');
+        })
+        .catch(error => {
+            debugLog('Error copying to clipboard:', error);
+            // Still open the URL even if clipboard fails
+            window.open(url, '_blank');
         });
-        return true; // Keep the message channel open for async response
-    }
-});
+}
 
 // Listen for messages from the page
 window.addEventListener('message', event => {
@@ -254,83 +84,7 @@ window.addEventListener('message', event => {
     // For BREVIFY_COMMAND messages, handle them directly
     if (message.type === 'BREVIFY_COMMAND') {
         const { command, params } = message;
-        debugLog('Processing command', { command, params });
-        
-        // Try background script first with a timeout
-        const timeoutMs = 500; // 500ms timeout
-        let timeoutId;
-        
-        try {
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => {
-                    reject(new Error('Background script timeout'));
-                }, timeoutMs);
-            });
-
-            const messagePromise = new Promise((resolve, reject) => {
-                chrome.runtime.sendMessage(message, response => {
-                    if (chrome.runtime.lastError) {
-                        reject(chrome.runtime.lastError);
-                    } else {
-                        resolve(response);
-                    }
-                });
-            });
-
-            // Race between timeout and message
-            Promise.race([messagePromise, timeoutPromise])
-                .then(response => {
-                    clearTimeout(timeoutId);
-                    debugLog('Background script responded', response);
-                    window.postMessage({
-                        type: 'BREVIFY_RESPONSE',
-                        payload: response
-                    }, '*');
-                })
-                .catch(error => {
-                    clearTimeout(timeoutId);
-                    debugLog('Falling back to local handling due to error:', error);
-                    handleCommandLocally(command, params);
-                });
-        } catch (error) {
-            debugLog('Error setting up message handling:', error);
-            handleCommandLocally(command, params);
-        }
-        
+        handleCommand(command, params);
         return;
     }
 });
-
-// Function to handle commands locally
-function handleCommandLocally(command, params) {
-    debugLog('Handling command locally', { command, params });
-    
-    let url;
-    switch (command) {
-        case 'chatgpt':
-            url = 'https://chat.openai.com/';
-            break;
-        case 'claude':
-            url = 'https://claude.ai/';
-            break;
-        case 'gemini':
-            url = 'https://gemini.google.com/';
-            break;
-        default:
-            debugLog('Unknown command', command);
-            return;
-    }
-    
-    // Copy text to clipboard first
-    navigator.clipboard.writeText(params.text)
-        .then(() => {
-            debugLog('Copied transcript to clipboard');
-            // Only open the URL after successfully copying to clipboard
-            window.open(url, '_blank');
-        })
-        .catch(error => {
-            debugLog('Error copying to clipboard:', error);
-            // Still open the URL even if clipboard fails
-            window.open(url, '_blank');
-        });
-}
