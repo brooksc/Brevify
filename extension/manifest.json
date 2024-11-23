@@ -11,6 +11,7 @@
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*"
   ],
@@ -22,9 +23,13 @@
       "matches": [
         "file://*/*",
         "http://*/*",
-        "https://*/*"
+        "https://*/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*"
       ],
-      "js": ["content.js"]
+      "js": ["content.js", "ai-service.js"]
     }
   ],
   "icons": {
@@ -38,6 +43,7 @@
       "resources": ["ai-service.js"],
       "matches": [
         "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
         "https://claude.ai/*",
         "https://gemini.google.com/*"
       ]
