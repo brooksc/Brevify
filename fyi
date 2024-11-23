@@ -14,3 +14,4 @@ KEEP existing route patterns and naming conventions
 TEST that new code works with existing HTMX interactions
 ENSURE new features follow the established project structure
 MAINTAIN all existing UI components and styling unless asked to make a change.
+Use chatgpt.com not chat.openai.com
