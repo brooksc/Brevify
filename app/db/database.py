@@ -1,9 +1,7 @@
-"""Database connection and session management."""
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-import os
+"""Database connection and session management using SQLModel."""
 from pathlib import Path
+from sqlmodel import Session, SQLModel, create_engine
+from app.models.models import Channel, Video
 
 # Get the base directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -12,19 +10,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATABASE_URL = f"sqlite:///{BASE_DIR}/brevify.db"
 
 # Create engine
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, echo=True)
 
-# Create sessionmaker
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def create_db_and_tables():
+    """Create all database tables."""
+    SQLModel.metadata.create_all(engine)
 
 def get_db():
     """Get database session."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# Create all tables
-from app.models.db_models import Base
-Base.metadata.create_all(bind=engine)
+    with Session(engine) as session:
+        yield session
