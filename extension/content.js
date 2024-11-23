@@ -250,6 +250,39 @@ window.addEventListener('message', event => {
     }
 
     debugLog('Processing BREVIFY message', message);
+    
+    // For BREVIFY_COMMAND messages, handle them directly
+    if (message.type === 'BREVIFY_COMMAND') {
+        const { command, params } = message;
+        debugLog('Processing command', { command, params });
+        
+        // Send directly to the appropriate service
+        switch (command) {
+            case 'chatgpt':
+                window.open(`https://chat.openai.com/`, '_blank');
+                navigator.clipboard.writeText(params.text).then(() => {
+                    debugLog('Copied transcript to clipboard');
+                });
+                break;
+            case 'claude':
+                window.open(`https://claude.ai/`, '_blank');
+                navigator.clipboard.writeText(params.text).then(() => {
+                    debugLog('Copied transcript to clipboard');
+                });
+                break;
+            case 'gemini':
+                window.open(`https://gemini.google.com/`, '_blank');
+                navigator.clipboard.writeText(params.text).then(() => {
+                    debugLog('Copied transcript to clipboard');
+                });
+                break;
+            default:
+                debugLog('Unknown command', command);
+        }
+        return;
+    }
+    
+    // For other BREVIFY messages, send to background
     sendMessageToBackground(message, (response) => {
         debugLog('Sending response back to page');
         window.postMessage({
