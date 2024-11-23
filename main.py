@@ -44,6 +44,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 youtube_service = YouTubeService()
 ai_url_service = AIURLService()
 url_service = URLService()
+video_list = VideoList(templates)
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -88,8 +89,7 @@ async def fetch_videos(request: Request, channel_url: str = Form(...)):
         
         # Get video list and process it through the component
         videos = youtube_service.get_channel_videos(channel_url)
-        video_list = VideoList(videos=videos)
-        processed_videos = video_list.process_videos()  # This will add AI URLs
+        processed_videos = video_list.process_videos(videos)  # This will add AI URLs
         
         # Render using the template
         return templates.TemplateResponse("video_list.html", {
@@ -99,6 +99,14 @@ async def fetch_videos(request: Request, channel_url: str = Form(...)):
     except Exception as e:
         logger.error(f"Error fetching videos: {e}")
         return {"error": str(e)}
+
+@app.get("/api/transcript/{video_id}")
+async def get_transcript(video_id: str):
+    """Get transcript for a specific video."""
+    transcript = await video_list.get_transcript(video_id)
+    if transcript:
+        return {"transcript": transcript}
+    return {"transcript": None}
 
 if __name__ == "__main__":
     import uvicorn
