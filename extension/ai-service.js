@@ -1,26 +1,22 @@
 (function () {
     console.log("Content script injected.");
 
-    // Wait for the textarea to be available
-    function waitForElement(selector) {
+    // Wait for the textarea and button to be available
+    function waitForElements() {
         return new Promise((resolve) => {
-            const element = document.querySelector(selector);
-            if (element) {
-                return resolve(element);
+            function checkElements() {
+                const textarea = document.querySelector("textarea");
+                const sendButton = document.querySelector('button[data-testid="send-button"]');
+                
+                if (textarea && sendButton) {
+                    return resolve({ textarea, sendButton });
+                }
+
+                // If elements not found, try again after a delay
+                setTimeout(checkElements, 100);
             }
 
-            const observer = new MutationObserver(() => {
-                const element = document.querySelector(selector);
-                if (element) {
-                    resolve(element);
-                    observer.disconnect();
-                }
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-            });
+            checkElements();
         });
     }
 
@@ -29,53 +25,24 @@
         if (message.selectedText) {
             console.log("Received selected text:", message.selectedText);
 
-            // Replace the text inside the textarea with the selected text
-            waitForElement("textarea").then((textarea) => {
-                console.log("Textarea found:", textarea);
+            // Wait for both textarea and send button
+            waitForElements().then(({ textarea, sendButton }) => {
+                console.log("Elements found:", { textarea, sendButton });
+                
+                // Set the text value
                 textarea.value = message.selectedText;
 
                 // Dispatch events to notify React of the change
                 textarea.dispatchEvent(new Event("input", { bubbles: true }));
                 textarea.dispatchEvent(new Event("change", { bubbles: true }));
 
-                // Try multiple ways to trigger submit
+                // Wait a bit for React to process the change, then click the send button
                 setTimeout(() => {
-                    // 1. Try Enter keydown event
-                    textarea.dispatchEvent(new KeyboardEvent("keydown", {
-                        key: "Enter",
-                        code: "Enter",
-                        keyCode: 13,
-                        which: 13,
-                        bubbles: true,
-                        composed: true
-                    }));
-
-                    // 2. Try Enter keypress event
-                    textarea.dispatchEvent(new KeyboardEvent("keypress", {
-                        key: "Enter",
-                        code: "Enter",
-                        keyCode: 13,
-                        which: 13,
-                        bubbles: true,
-                        composed: true
-                    }));
-
-                    // 3. Look for submit button and click it
-                    const submitButton = textarea.form?.querySelector('button[type="submit"]') || 
-                                      document.querySelector('button[type="submit"]') ||
-                                      Array.from(document.querySelectorAll('button')).find(b => 
-                                          b.textContent.toLowerCase().includes('send') || 
-                                          b.textContent.toLowerCase().includes('submit'));
-                    
-                    if (submitButton) {
-                        console.log("Found submit button:", submitButton);
-                        submitButton.click();
-                    } else {
-                        console.log("No submit button found");
-                    }
-                }, 100); // Small delay to ensure text is properly set
+                    console.log("Clicking send button");
+                    sendButton.click();
+                }, 500);
             }).catch((error) => {
-                console.error("Error finding textarea:", error);
+                console.error("Error finding elements:", error);
             });
         }
     });
