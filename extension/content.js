@@ -19,6 +19,17 @@ debugLog('Initializing');
 function handleCommand(command, params) {
     debugLog('Handling command', { command, params });
     
+    // Debug the transcript data
+    if (params && params.text) {
+        debugLog('Transcript data received:', {
+            length: params.text.length,
+            preview: params.text.substring(0, 100) + '...',
+            fullText: params.text
+        });
+    } else {
+        debugLog('No transcript data in params:', params);
+    }
+    
     let url;
     switch (command) {
         case 'chatgpt':
@@ -35,25 +46,54 @@ function handleCommand(command, params) {
             return;
     }
     
-    // Copy text to clipboard first
-    navigator.clipboard.writeText(params.text)
-        .then(() => {
-            debugLog('Copied transcript to clipboard');
-            // Only open the URL after successfully copying to clipboard
-            window.open(url, '_blank');
-        })
-        .catch(error => {
-            debugLog('Error copying to clipboard:', error);
-            // Still open the URL even if clipboard fails
-            window.open(url, '_blank');
-        });
+    // Copy text to clipboard with more detailed error handling
+    if (params && params.text) {
+        debugLog('Attempting to copy to clipboard, text length:', params.text.length);
+        navigator.clipboard.writeText(params.text)
+            .then(() => {
+                debugLog('Successfully copied to clipboard');
+                // Test clipboard content
+                navigator.clipboard.readText().then(clipText => {
+                    debugLog('Clipboard content verification:', {
+                        length: clipText.length,
+                        preview: clipText.substring(0, 100) + '...'
+                    });
+                }).catch(err => {
+                    debugLog('Error reading clipboard:', err);
+                });
+                
+                // Only open the URL after successfully copying to clipboard
+                debugLog('Opening URL:', url);
+                window.open(url, '_blank');
+            })
+            .catch(error => {
+                debugLog('Error copying to clipboard:', {
+                    error: error,
+                    errorName: error.name,
+                    errorMessage: error.message,
+                    errorStack: error.stack
+                });
+                // Still open the URL even if clipboard fails
+                debugLog('Opening URL despite clipboard error:', url);
+                window.open(url, '_blank');
+            });
+    } else {
+        debugLog('No text to copy to clipboard');
+        window.open(url, '_blank');
+    }
 }
 
 // Listen for messages from the page
 window.addEventListener('message', event => {
     debugLog('Received window message', {
         origin: event.origin,
-        data: event.data
+        data: event.data,
+        type: event.data?.type,
+        command: event.data?.command,
+        paramsPreview: event.data?.params ? {
+            hasText: !!event.data.params.text,
+            textLength: event.data.params.text?.length
+        } : null
     });
     
     // Only accept messages from our own window
@@ -84,6 +124,13 @@ window.addEventListener('message', event => {
     // For BREVIFY_COMMAND messages, handle them directly
     if (message.type === 'BREVIFY_COMMAND') {
         const { command, params } = message;
+        debugLog('Executing command', {
+            command,
+            paramsPreview: params ? {
+                hasText: !!params.text,
+                textLength: params.text?.length
+            } : null
+        });
         handleCommand(command, params);
         return;
     }
