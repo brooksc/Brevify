@@ -22,26 +22,23 @@
                     <div class="flex justify-center gap-4">
                         {% if video.chatgpt_url %}
                         <a href="{{ video.chatgpt_url }}" target="_blank" 
-                           class="flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg 
+                           class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg 
                                   hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                            <img src="/static/chatgpt.png" alt="ChatGPT" class="w-6 h-6 mr-2">
-                            <span class="text-gray-800 dark:text-gray-200 text-sm font-medium">ChatGPT</span>
+                            <img src="/static/chatgpt.png" alt="ChatGPT" class="w-6 h-6">
                         </a>
                         {% endif %}
                         {% if video.claude_url %}
                         <a href="{{ video.claude_url }}" target="_blank"
-                           class="flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg
+                           class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg
                                   hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                            <img src="/static/claude.png" alt="Claude" class="w-6 h-6 mr-2">
-                            <span class="text-gray-800 dark:text-gray-200 text-sm font-medium">Claude</span>
+                            <img src="/static/claude.png" alt="Claude" class="w-6 h-6">
                         </a>
                         {% endif %}
                         {% if video.gemini_url %}
                         <a href="{{ video.gemini_url }}" target="_blank"
-                           class="flex items-center px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg
+                           class="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg
                                   hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                            <img src="/static/gemini.png" alt="Gemini" class="w-6 h-6 mr-2">
-                            <span class="text-gray-800 dark:text-gray-200 text-sm font-medium">Gemini</span>
+                            <img src="/static/gemini.png" alt="Gemini" class="w-6 h-6">
                         </a>
                         {% endif %}
                     </div>
