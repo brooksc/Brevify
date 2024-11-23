@@ -91,27 +91,37 @@ window.addEventListener('message', event => {
         origin: event.origin,
         data: event.data
     });
-    
-    // Only accept messages from our own window
-    if (event.source !== window) {
-        debugLog('Ignoring message from different source');
+
+    // Verify origin and message format
+    if (event.origin !== BREVIFY_API || !event.data || !event.data.type) {
         return;
     }
-    
+
     const message = event.data;
-    
-    // Handle extension check
-    if (message.type === 'BREVIFY_CHECK') {
+    debugLog('Processing BREVIFY message', message);
+
+    if (message.type === 'BREVIFY_ANALYZE') {
+        // Forward the message to background script
+        chrome.runtime.sendMessage(message, response => {
+            debugLog('Background script response:', response);
+            if (chrome.runtime.lastError) {
+                debugLog('Error from background script:', chrome.runtime.lastError);
+            }
+            // Send response back to the page
+            window.postMessage({
+                type: 'BREVIFY_RESPONSE',
+                success: !response.error,
+                error: response.error
+            }, BREVIFY_API);
+        });
+    } else if (message.type === 'BREVIFY_CHECK') {
         debugLog('Extension check received');
         window.postMessage({
             type: 'BREVIFY_RESPONSE',
             payload: { success: true }
         }, '*');
         return;
-    }
-    
-    // Ignore if not a BREVIFY message or if it's a response
-    if (!message?.type?.startsWith('BREVIFY_') || message.type === 'BREVIFY_RESPONSE') {
+    } else if (!message?.type?.startsWith('BREVIFY_') || message.type === 'BREVIFY_RESPONSE') {
         return;
     }
 
