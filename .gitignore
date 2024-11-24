@@ -30,3 +30,4 @@ js/config.js
 .gitignore.swp
 .pytest_cache
 .sesskey
+.pytest_cache
