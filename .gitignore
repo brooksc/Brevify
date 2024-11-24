@@ -18,3 +18,15 @@ js/config.js
 .aider*
 *.pyc
 .envrc
+
+.DS_Store
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v3
+.env
+.envrc
+.git
+.gitignore
+.gitignore.swp
+.pytest_cache
+.sesskey
