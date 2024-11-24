@@ -15,7 +15,7 @@
   "host_permissions": [
     "http://localhost:8888/*",
     "http://127.0.0.1:8888/*",
-    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*"
   ],
@@ -25,16 +25,21 @@
   "content_scripts": [
     {
       "matches": [
+        "https://www.youtube.com/*",
         "http://localhost:8888/*",
         "http://127.0.0.1:8888/*"
       ],
-      "js": ["content.js"]
-    },
+      "js": ["content.js", "youtube.js"]
+    }
+  ],
+  "web_accessible_resources": [
     {
+      "resources": ["icons/*", "*.js"],
       "matches": [
-        "https://www.youtube.com/*"
-      ],
-      "js": ["youtube.js"]
+        "https://www.youtube.com/*",
+        "http://localhost:8888/*",
+        "http://127.0.0.1:8888/*"
+      ]
     }
   ],
   "action": {
