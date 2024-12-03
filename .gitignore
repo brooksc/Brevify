@@ -31,3 +31,4 @@ js/config.js
 .pytest_cache
 .sesskey
 .pytest_cache
+venv
